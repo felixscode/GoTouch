@@ -1,0 +1,7 @@
+text:
+  source: dummy
+ui:
+  theme: "default"
+stats:
+  file_dir: "user_stats.json"
+#
