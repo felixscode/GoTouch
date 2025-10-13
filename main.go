@@ -16,7 +16,7 @@ func getText(config types.Config) (string, error) {
 		return "", err
 	}
 	text, err := textSource.GetText()
-	return text, nil
+	return text, err
 }
 
 func main() {
@@ -25,9 +25,12 @@ func main() {
 		log.Fatal(err)
 	}
 	text, err := getText(*config)
+	if err != nil {
+		log.Fatal(err)
+	}
 	sessionResult := ui.Run(*config, text)
 	if sessionResult.Error != nil {
-		log.Fatal(err)
+		log.Fatal(sessionResult.Error)
 	}
 	fmt.Println(sessionResult)
 }

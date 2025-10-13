@@ -142,7 +142,7 @@ func (m welcomeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func showWelcome(config types.Config, stats types.UserStats) (WelcomeAction, error) {
 	model := newWelcomeModel(config, stats)
 
-	program := tea.NewProgram(model)
+	program := tea.NewProgram(model, tea.WithAltScreen())
 	finalModel, err := program.Run()
 	if err != nil {
 		return Exit, err
@@ -166,40 +166,148 @@ type sessionModel struct {
 	keyStrokeTimes []time.Duration // time per word
 	completed      bool            // session finished
 	quit           bool            // user quit early
-	has_started    bool
+	hasStarted     bool
+	width          int // terminal width
+	height         int // terminal height
+}
+
+func (m sessionModel) Init() tea.Cmd {
+	return nil
 }
 
 func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
 
+	case tea.KeyMsg:
+		// Exit keys
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.quit = true
+			return m, tea.Quit
+
+		case "enter":
+			// Start the session on first enter press
+			if !m.hasStarted {
+				m.hasStarted = true
+				m.startTime = time.Now()
+				m.lastKeyTime = m.startTime
+				return m, nil
+			}
+
+		case "backspace":
+			if len(m.typedText) > 0 {
+				m.typedText = m.typedText[:len(m.typedText)-1]
+			}
+			return m, nil
+		}
+
+		// Only process character input if session has started
+		if !m.hasStarted {
+			return m, nil
+		}
+
+		// Handle regular character input
+		key := msg.String()
+
+		// Only process single character keys or space
+		if len(key) == 1 || key == "space" {
+			if key == "space" {
+				key = " "
+			}
+
+			// Add the character to typed text
+			m.typedText += key
+
+			// Track timing
+			currentTime := time.Now()
+			m.keyStrokeTimes = append(m.keyStrokeTimes, currentTime.Sub(m.lastKeyTime))
+			m.lastKeyTime = currentTime
+
+			// Check if character is incorrect
+			if len(m.typedText) <= len(m.text) {
+				if m.typedText[len(m.typedText)-1] != m.text[len(m.typedText)-1] {
+					m.errors++
+				}
+			}
+
+			// Check if completed
+			if m.typedText == m.text {
+				m.completed = true
+				return m, tea.Quit
+			}
+		}
 	}
+	return m, nil
 }
 
 func (m sessionModel) View() string {
-	if !m.hasStarted { // Add this field to your struct
+	if !m.hasStarted {
 		return "Press ENTER to start\n\nPress ESC or CTRL-C to exit"
 	}
 
 	var result strings.Builder
 
-	// Display each character with appropriate color
+	// Set default width if not set yet
+	maxWidth := m.width
+	if maxWidth == 0 {
+		maxWidth = 80 // Default fallback
+	}
+
+	// Reserve space for margins and the footer
+	maxWidth -= 4 // Some padding
+
+	currentLineWidth := 0
+
+	// Display each character with appropriate color, wrapping at terminal width
 	for i, char := range m.text {
 		charStr := string(char)
 
+		// Handle newlines in the source text
+		if char == '\n' {
+			result.WriteString("\n")
+			currentLineWidth = 0
+			continue
+		}
+
+		// Wrap to next line if we exceed terminal width
+		if currentLineWidth >= maxWidth && char != ' ' {
+			result.WriteString("\n")
+			currentLineWidth = 0
+		}
+
+		// Apply styling based on typing status
+		var styledChar string
 		if i < len(m.typedText) {
 			// Character has been typed
 			if m.typedText[i] == m.text[i] {
-				result.WriteString(correctStyle.Render(charStr)) // Green
+				styledChar = DefaultTheme.Correct.Render(charStr) // Green
 			} else {
-				result.WriteString(incorrectStyle.Render(charStr)) // Red
+				styledChar = DefaultTheme.Incorrect.Render(charStr) // Red
 			}
 		} else if i == len(m.typedText) {
 			// Current cursor position
-			result.WriteString(currentStyle.Render(charStr)) // Yellow/highlighted
+			styledChar = DefaultTheme.Current.Render(charStr) // Yellow/highlighted
 		} else {
 			// Not yet typed
-			result.WriteString(normalStyle.Render(charStr)) // Default
+			styledChar = DefaultTheme.Normal.Render(charStr) // Default
+		}
+
+		result.WriteString(styledChar)
+
+		// Update line width (account for visual width)
+		if char == ' ' {
+			currentLineWidth++
+			// Break line after space if needed
+			if currentLineWidth >= maxWidth {
+				result.WriteString("\n")
+				currentLineWidth = 0
+			}
+		} else {
+			currentLineWidth++
 		}
 	}
 
@@ -208,11 +316,63 @@ func (m sessionModel) View() string {
 	return result.String()
 }
 
-// Placeholder for the actual typing session - you'll need to implement this
 func startSession(config types.Config, text string) (types.TypingSession, error) {
-	// TODO: Implement the actual typing session logic
-	// For now, return a dummy session
-	return types.TypingSession{}, errors.New("startSession not implemented yet")
+	// Create initial model
+	model := sessionModel{
+		text:           text,
+		typedText:      "",
+		errors:         0,
+		cursor:         0,
+		keyStrokeTimes: make([]time.Duration, 0),
+		completed:      false,
+		quit:           false,
+		hasStarted:     false,
+		width:          0, // Will be set by WindowSizeMsg
+		height:         0, // Will be set by WindowSizeMsg
+	}
+
+	// Run the Bubbletea program with alternate screen
+	program := tea.NewProgram(model, tea.WithAltScreen())
+	finalModel, err := program.Run()
+	if err != nil {
+		return types.TypingSession{}, err
+	}
+
+	// Cast back to sessionModel
+	session := finalModel.(sessionModel)
+
+	// If user quit early, return error
+	if session.quit {
+		return types.TypingSession{}, errors.New("session cancelled by user")
+	}
+
+	// Calculate duration
+	duration := session.lastKeyTime.Sub(session.startTime)
+
+	// Calculate WPM (Words Per Minute)
+	// Standard: 1 word = 5 characters
+	words := float32(len(session.text)) / 5.0
+	minutes := duration.Minutes()
+	wpm := words / float32(minutes)
+
+	// Calculate accuracy
+	totalChars := len(session.typedText)
+	correctChars := totalChars - session.errors
+	accuracy := float32(0)
+	if totalChars > 0 {
+		accuracy = (float32(correctChars) / float32(totalChars)) * 100
+	}
+
+	// Create the typing session result
+	result := types.TypingSession{
+		Date:     session.startTime,
+		WPM:      wpm,
+		Accuracy: accuracy,
+		Errors:   session.errors,
+		Duration: duration,
+	}
+
+	return result, nil
 }
 
 func Run(config types.Config, text string) SessionResult {
