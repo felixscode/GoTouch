@@ -157,23 +157,38 @@ func showWelcome(config types.Config, stats types.UserStats) (WelcomeAction, err
 }
 
 type sessionModel struct {
-	text           string
-	typedText      string
-	errors         int
-	cursor         int
-	startTime      time.Time       // when session started
-	lastKeyTime    time.Time       // last keystroke time
-	keyStrokeTimes []time.Duration // time per word
-	completed      bool            // session finished
-	quit           bool            // user quit early
-	hasStarted     bool
-	width          int // terminal width
-	height         int // terminal height
+	text             string
+	typedText        string
+	errors           int
+	cursor           int
+	startTime        time.Time       // when session started
+	lastKeyTime      time.Time       // last keystroke time
+	keyStrokeTimes   []time.Duration // time per word
+	completed        bool            // session finished
+	quit             bool            // user quit early
+	hasStarted       bool
+	width            int             // terminal width
+	height           int             // terminal height
+	viewportOffset   int             // horizontal scroll position for centered cursor
+	sessionDuration  time.Duration   // total session duration
+	selectedDuration int             // selected duration in minutes (for setup UI)
 }
 
 func (m sessionModel) Init() tea.Cmd {
-	return nil
+	return tea.Batch(
+		tea.WindowSize(),
+		tickCmd(),
+	)
 }
+
+// tickCmd returns a command that ticks every 100ms to update the timer
+func tickCmd() tea.Cmd {
+	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
+
+type tickMsg time.Time
 
 func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -182,6 +197,17 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 
+	case tickMsg:
+		// Check if session time has expired
+		if m.hasStarted && !m.completed && !m.quit {
+			elapsed := time.Since(m.startTime)
+			if elapsed >= m.sessionDuration {
+				m.completed = true
+				return m, tea.Quit
+			}
+		}
+		return m, tickCmd() // Continue ticking
+
 	case tea.KeyMsg:
 		// Exit keys
 		switch msg.String() {
@@ -189,10 +215,31 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quit = true
 			return m, tea.Quit
 
+		case "up":
+			// Increase duration before session starts
+			if !m.hasStarted {
+				m.selectedDuration++
+				if m.selectedDuration > 60 { // Max 60 minutes
+					m.selectedDuration = 60
+				}
+				return m, nil
+			}
+
+		case "down":
+			// Decrease duration before session starts
+			if !m.hasStarted {
+				m.selectedDuration--
+				if m.selectedDuration < 1 { // Min 1 minute
+					m.selectedDuration = 1
+				}
+				return m, nil
+			}
+
 		case "enter":
 			// Start the session on first enter press
 			if !m.hasStarted {
 				m.hasStarted = true
+				m.sessionDuration = time.Duration(m.selectedDuration) * time.Minute
 				m.startTime = time.Now()
 				m.lastKeyTime = m.startTime
 				return m, nil
@@ -244,39 +291,116 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// getCurrentWPM calculates WPM based on current typing progress
+func (m sessionModel) getCurrentWPM() float32 {
+	if !m.hasStarted {
+		return 0
+	}
+
+	elapsed := time.Since(m.startTime)
+	if elapsed.Seconds() < 1 {
+		return 0 // Avoid division by very small numbers
+	}
+
+	// Calculate based on characters typed so far
+	words := float32(len(m.typedText)) / 5.0
+	minutes := float32(elapsed.Minutes())
+	return words / minutes
+}
+
+// getCurrentAccuracy calculates accuracy percentage based on current progress
+func (m sessionModel) getCurrentAccuracy() float32 {
+	totalChars := len(m.typedText)
+	if totalChars == 0 {
+		return 0
+	}
+
+	correctChars := totalChars - m.errors
+	return (float32(correctChars) / float32(totalChars)) * 100
+}
+
 func (m sessionModel) View() string {
 	if !m.hasStarted {
-		return "Press ENTER to start\n\nPress ESC or CTRL-C to exit"
+		return fmt.Sprintf("Session Duration: %d minutes\n\nUse UP/DOWN arrows to adjust\nPress ENTER to start\nPress ESC or CTRL-C to exit", m.selectedDuration)
+	}
+
+	// Wait for terminal dimensions before rendering
+	if m.width == 0 {
+		return "Loading..."
 	}
 
 	var result strings.Builder
 
-	// Set default width if not set yet
-	maxWidth := m.width
-	if maxWidth == 0 {
-		maxWidth = 80 // Default fallback
-	}
+	terminalWidth := m.width
 
-	// Reserve space for margins and the footer
-	maxWidth -= 4 // Some padding
+	// Calculate and display stats header
+	elapsed := time.Since(m.startTime)
+	remaining := m.sessionDuration - elapsed
+	currentWPM := m.getCurrentWPM()
+	currentAccuracy := m.getCurrentAccuracy()
 
-	currentLineWidth := 0
+	// Display remaining time in minutes:seconds format
+	remainingMinutes := int(remaining.Minutes())
+	remainingSeconds := int(remaining.Seconds()) % 60
 
-	// Display each character with appropriate color, wrapping at terminal width
-	for i, char := range m.text {
-		charStr := string(char)
+	statsHeader := fmt.Sprintf("Time Remaining: %d:%02d | WPM: %.0f | Accuracy: %.1f%% | Errors: %d\n\n",
+		remainingMinutes,
+		remainingSeconds,
+		currentWPM,
+		currentAccuracy,
+		m.errors,
+	)
+	result.WriteString(statsHeader)
 
-		// Handle newlines in the source text
-		if char == '\n' {
-			result.WriteString("\n")
-			currentLineWidth = 0
-			continue
+	// Reserve space for margins
+	displayWidth := terminalWidth - 4
+
+	// Current cursor position (next character to type)
+	cursorPos := len(m.typedText)
+
+	// Calculate center position
+	centerPos := displayWidth / 2
+
+	// Calculate viewport window
+	var viewportStart, viewportEnd int
+
+	textLen := len(m.text)
+
+	// If text is shorter than display width, no scrolling needed
+	if textLen <= displayWidth {
+		viewportStart = 0
+		viewportEnd = textLen
+	} else {
+		// Calculate viewport to keep cursor centered
+		viewportStart = cursorPos - centerPos
+		viewportEnd = viewportStart + displayWidth
+
+		// Adjust if we're at the beginning
+		if viewportStart < 0 {
+			viewportStart = 0
+			viewportEnd = displayWidth
 		}
 
-		// Wrap to next line if we exceed terminal width
-		if currentLineWidth >= maxWidth && char != ' ' {
-			result.WriteString("\n")
-			currentLineWidth = 0
+		// Adjust if we're near the end
+		if viewportEnd > textLen {
+			viewportEnd = textLen
+			viewportStart = textLen - displayWidth
+			if viewportStart < 0 {
+				viewportStart = 0
+			}
+		}
+	}
+
+	// Render visible characters
+	// Note: cursor position on screen = (cursorPos - viewportStart)
+	// The viewport calculation already handles centering
+	for i := viewportStart; i < viewportEnd; i++ {
+		char := m.text[i]
+		charStr := string(char)
+
+		// Skip newlines and tabs (as per user's notes)
+		if char == '\n' || char == '\t' {
+			continue
 		}
 
 		// Apply styling based on typing status
@@ -297,18 +421,6 @@ func (m sessionModel) View() string {
 		}
 
 		result.WriteString(styledChar)
-
-		// Update line width (account for visual width)
-		if char == ' ' {
-			currentLineWidth++
-			// Break line after space if needed
-			if currentLineWidth >= maxWidth {
-				result.WriteString("\n")
-				currentLineWidth = 0
-			}
-		} else {
-			currentLineWidth++
-		}
 	}
 
 	result.WriteString("\n\nPress ESC or CTRL-C to exit")
@@ -319,16 +431,19 @@ func (m sessionModel) View() string {
 func startSession(config types.Config, text string) (types.TypingSession, error) {
 	// Create initial model
 	model := sessionModel{
-		text:           text,
-		typedText:      "",
-		errors:         0,
-		cursor:         0,
-		keyStrokeTimes: make([]time.Duration, 0),
-		completed:      false,
-		quit:           false,
-		hasStarted:     false,
-		width:          0, // Will be set by WindowSizeMsg
-		height:         0, // Will be set by WindowSizeMsg
+		text:             text,
+		typedText:        "",
+		errors:           0,
+		cursor:           0,
+		keyStrokeTimes:   make([]time.Duration, 0),
+		completed:        false,
+		quit:             false,
+		hasStarted:       false,
+		width:            0,                // Will be set by WindowSizeMsg
+		height:           0,                // Will be set by WindowSizeMsg
+		viewportOffset:   0,                // Start at beginning
+		selectedDuration: 1,                // Default to 1 minute
+		sessionDuration:  0,                // Will be set when session starts
 	}
 
 	// Run the Bubbletea program with alternate screen
