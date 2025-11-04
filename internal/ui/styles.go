@@ -15,32 +15,30 @@ var (
 	DefaultTheme = Theme{
 		Name: "Default",
 		Correct: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00FF00")), // Green
+			Foreground(lipgloss.Color("2")), // Terminal green
 		Incorrect: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF0000")).
-			Background(lipgloss.Color("#FFCCCC")), // Red with light background
+			Foreground(lipgloss.Color("1")), // Terminal red
 		Current: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFF00")).
-			Background(lipgloss.Color("#333333")), // Yellow with dark background
+			Foreground(lipgloss.Color("0")).
+			Background(lipgloss.Color("3")), // Black text on terminal yellow
 		Normal: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFFFF")), // White
+			Foreground(lipgloss.Color("7")), // Terminal white/default
 		Background: lipgloss.NewStyle().
-			Background(lipgloss.Color("#000000")), // Black background
+			Background(lipgloss.Color("0")), // Terminal black
 	}
 
 	DarkTheme = Theme{
 		Name: "Dark",
 		Correct: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00AA00")), // Darker green
+			Foreground(lipgloss.Color("10")), // Bright terminal green
 		Incorrect: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#AA0000")).
-			Background(lipgloss.Color("#330000")), // Dark red
+			Foreground(lipgloss.Color("9")), // Bright terminal red
 		Current: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#000000")).
-			Background(lipgloss.Color("#FFFF00")), // Black on yellow
+			Foreground(lipgloss.Color("0")).
+			Background(lipgloss.Color("11")), // Black on bright terminal yellow
 		Normal: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#CCCCCC")), // Light gray
+			Foreground(lipgloss.Color("15")), // Bright terminal white
 		Background: lipgloss.NewStyle().
-			Background(lipgloss.Color("#111111")), // Very dark background
+			Background(lipgloss.Color("0")), // Terminal black
 	}
 )
