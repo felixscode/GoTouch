@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"go-touch/internal/sources"
 	"go-touch/internal/types"
 	"go-touch/internal/ui"
@@ -10,13 +9,13 @@ import (
 
 var ConfigDir string = "config.yaml"
 
-func getText(config types.Config) (string, error) {
-	textSource, err := sources.NewTextSource(config.Text.Source)
+func getText(config types.Config) (string, sources.TextSource, error) {
+	textSource, err := sources.NewTextSource(config.Text.Source, config.Text)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	text, err := textSource.GetText()
-	return text, err
+	return text, textSource, err
 }
 
 func main() {
@@ -24,13 +23,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	text, err := getText(*config)
+	text, textSource, err := getText(*config)
 	if err != nil {
 		log.Fatal(err)
 	}
-	sessionResult := ui.Run(*config, text)
+
+	// Debug: Check if we got text
+	if text == "" {
+		log.Fatal("Error: No text generated")
+	}
+
+	sessionResult := ui.Run(*config, text, textSource)
 	if sessionResult.Error != nil {
 		log.Fatal(sessionResult.Error)
 	}
-	fmt.Println(sessionResult)
+	// fmt.Println(sessionResult)
 }

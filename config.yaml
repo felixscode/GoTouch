@@ -1,5 +1,11 @@
 text:
-  source: dummy
+  source: llm
+  llm:
+    model: "haiku"  # Options: sonnet or haiku
+    pregenerate_threshold: 20
+    fallback_to_dummy: true
+    timeout_seconds: 5
+    max_retries: 1
 ui:
   theme: "default"
 stats:

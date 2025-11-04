@@ -17,8 +17,18 @@ type UiConfig struct {
 }
 
 type TextConfig struct {
-	Source string `yaml:"source"`
+	Source string    `yaml:"source"`
+	LLM    LLMConfig `yaml:"llm"`
 }
+
+type LLMConfig struct {
+	Model                 string `yaml:"model"`
+	PregenerateThreshold  int    `yaml:"pregenerate_threshold"`
+	FallbackToDummy       bool   `yaml:"fallback_to_dummy"`
+	TimeoutSeconds        int    `yaml:"timeout_seconds"`
+	MaxRetries            int    `yaml:"max_retries"`
+}
+
 type StatsConfig struct {
 	FileDir string `yaml:"file_dir"`
 }

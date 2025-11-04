@@ -38,3 +38,4 @@ go.work.sum
 .gitignore
 gotouch
 .claude-todo.md
+api-key

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go-touch/internal/sources"
 	"go-touch/internal/types"
 	"os"
 	"strings"
@@ -43,10 +44,94 @@ func getUserStats(config types.Config) (types.UserStats, error) {
 
 }
 
+func saveUserStats(config types.Config, stats types.UserStats) error {
+	// Ensure the directory exists
+	// Marshal to pretty JSON
+	data, err := json.MarshalIndent(stats, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	// Write to file
+	err = os.WriteFile(config.Stats.FileDir, data, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// analyzeErrors compares typed text with target text and returns error patterns
+func analyzeErrors(typed, target string) (errorChars []rune, problemWords []string) {
+	errorCharMap := make(map[rune]int)
+	problemWordMap := make(map[string]bool)
+
+	// Split into words
+	typedWords := strings.Fields(typed)
+	targetWords := strings.Fields(target)
+
+	// Compare character by character
+	minLen := len(typed)
+	if len(target) < minLen {
+		minLen = len(target)
+	}
+
+	for i := 0; i < minLen; i++ {
+		if typed[i] != target[i] {
+			errorCharMap[rune(target[i])]++
+		}
+	}
+
+	// Compare words to find problematic ones
+	for i := 0; i < len(typedWords) && i < len(targetWords); i++ {
+		if typedWords[i] != targetWords[i] {
+			problemWordMap[targetWords[i]] = true
+		}
+	}
+
+	// Convert maps to slices
+	for char := range errorCharMap {
+		errorChars = append(errorChars, char)
+	}
+
+	for word := range problemWordMap {
+		problemWords = append(problemWords, word)
+	}
+
+	return errorChars, problemWords
+}
+
 type SessionResult struct {
 	Error   error
 	Session *types.TypingSession
 	Exited  bool
+}
+
+func (s SessionResult) String() string {
+	if s.Exited {
+		return "Session exited without starting."
+	}
+
+	if s.Error != nil {
+		return fmt.Sprintf("Session ended with error: %v", s.Error)
+	}
+
+	if s.Session == nil {
+		return "No session data available."
+	}
+
+	// Format the session stats nicely
+	var result strings.Builder
+	result.WriteString("\n╔════════════════════════════════════════╗\n")
+	result.WriteString("║          SESSION SUMMARY               ║\n")
+	result.WriteString("╚════════════════════════════════════════╝\n")
+	result.WriteString(fmt.Sprintf("  WPM:       %.0f\n", s.Session.WPM))
+	result.WriteString(fmt.Sprintf("  Accuracy:  %.1f%%\n", s.Session.Accuracy))
+	result.WriteString(fmt.Sprintf("  Errors:    %d\n", s.Session.Errors))
+	result.WriteString(fmt.Sprintf("  Duration:  %s\n", formatDuration(s.Session.Duration)))
+	result.WriteString("\nSession saved successfully!\n")
+
+	return result.String()
 }
 
 // enum
@@ -156,6 +241,109 @@ func showWelcome(config types.Config, stats types.UserStats) (WelcomeAction, err
 	return Exit, nil
 }
 
+// dashboardModel shows post-session statistics
+type dashboardModel struct {
+	config         types.Config
+	currentSession types.TypingSession
+	allStats       types.UserStats
+	width          int
+	height         int
+}
+
+func newDashboardModel(config types.Config, session types.TypingSession, stats types.UserStats) dashboardModel {
+	return dashboardModel{
+		config:         config,
+		currentSession: session,
+		allStats:       stats,
+	}
+}
+
+func (m dashboardModel) Init() tea.Cmd {
+	return tea.WindowSize()
+}
+
+func (m dashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
+
+	case tea.KeyMsg:
+		// Only Enter key exits the dashboard
+		if msg.String() == "enter" {
+			return m, tea.Quit
+		}
+	}
+
+	return m, nil
+}
+
+func (m dashboardModel) View() string {
+	var s strings.Builder
+
+	s.WriteString("╔════════════════════════════════════════╗\n")
+	s.WriteString("║        SESSION COMPLETE!               ║\n")
+	s.WriteString("╚════════════════════════════════════════╝\n\n")
+
+	// Current session stats
+	s.WriteString("📊 Your Performance:\n")
+	s.WriteString(fmt.Sprintf("   WPM:      %.0f\n", m.currentSession.WPM))
+	s.WriteString(fmt.Sprintf("   Accuracy: %.1f%%\n", m.currentSession.Accuracy))
+	s.WriteString(fmt.Sprintf("   Errors:   %d\n", m.currentSession.Errors))
+	s.WriteString(fmt.Sprintf("   Duration: %s\n\n", formatDuration(m.currentSession.Duration)))
+
+	// Historical stats
+	if len(m.allStats.Sessions) > 0 {
+		avgWPM, bestWPM, avgAccuracy := calculateHistoricalStats(m.allStats)
+
+		s.WriteString("📈 Historical Stats:\n")
+		s.WriteString(fmt.Sprintf("   Average WPM:    %.0f\n", avgWPM))
+		s.WriteString(fmt.Sprintf("   Best WPM:       %.0f\n", bestWPM))
+		s.WriteString(fmt.Sprintf("   Avg Accuracy:   %.1f%%\n", avgAccuracy))
+		s.WriteString(fmt.Sprintf("   Total Sessions: %d\n\n", len(m.allStats.Sessions)))
+	}
+
+	s.WriteString("Press Enter to exit...")
+
+	return s.String()
+}
+
+func formatDuration(d time.Duration) string {
+	minutes := int(d.Minutes())
+	seconds := int(d.Seconds()) % 60
+	return fmt.Sprintf("%d:%02d", minutes, seconds)
+}
+
+func calculateHistoricalStats(stats types.UserStats) (avgWPM, bestWPM, avgAccuracy float32) {
+	if len(stats.Sessions) == 0 {
+		return 0, 0, 0
+	}
+
+	var totalWPM, totalAccuracy float32
+	bestWPM = 0
+
+	for _, session := range stats.Sessions {
+		totalWPM += session.WPM
+		totalAccuracy += session.Accuracy
+		if session.WPM > bestWPM {
+			bestWPM = session.WPM
+		}
+	}
+
+	avgWPM = totalWPM / float32(len(stats.Sessions))
+	avgAccuracy = totalAccuracy / float32(len(stats.Sessions))
+
+	return avgWPM, bestWPM, avgAccuracy
+}
+
+func showDashboard(config types.Config, session types.TypingSession, stats types.UserStats) error {
+	model := newDashboardModel(config, session, stats)
+	program := tea.NewProgram(model, tea.WithAltScreen())
+	_, err := program.Run()
+	return err
+}
+
 type sessionModel struct {
 	text             string
 	typedText        string
@@ -167,11 +355,26 @@ type sessionModel struct {
 	completed        bool            // session finished
 	quit             bool            // user quit early
 	hasStarted       bool
-	width            int             // terminal width
-	height           int             // terminal height
-	viewportOffset   int             // horizontal scroll position for centered cursor
-	sessionDuration  time.Duration   // total session duration
-	selectedDuration int             // selected duration in minutes (for setup UI)
+	width            int           // terminal width
+	height           int           // terminal height
+	viewportOffset   int           // horizontal scroll position for centered cursor
+	sessionDuration  time.Duration // total session duration
+	selectedDuration int           // selected duration in minutes (for setup UI)
+
+	// LLM pregeneration fields
+	isLLMSource          bool               // Flag for LLM mode
+	llmSource            *sources.LLMSource // LLM source for generating text
+	lastSentence         string             // Previous sentence for context
+	errorPatterns        map[rune]int       // Track char error frequency
+	problemWords         []string           // Words with mistakes
+	generationPending    bool               // Is LLM call in progress?
+	nextSentenceReady    bool               // Next sentence generated?
+	nextSentenceBuffer   string             // Buffered next sentence
+	generationChan       chan string        // Channel for async generation
+	generationErrChan    chan error         // Channel for generation errors
+	pregenerateThreshold int                // Chars before end to trigger
+	currentSentenceEndPos int               // Position where current sentence ends
+	config               types.Config       // Config for LLM settings
 }
 
 func (m sessionModel) Init() tea.Cmd {
@@ -190,6 +393,14 @@ func tickCmd() tea.Cmd {
 
 type tickMsg time.Time
 
+type generationCompleteMsg struct {
+	sentence string
+}
+
+type generationErrorMsg struct {
+	err error
+}
+
 func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -206,7 +417,36 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		}
+
+		// Check for pregeneration trigger
+		if m.isLLMSource && m.hasStarted && !m.generationPending && !m.nextSentenceReady {
+			charsRemaining := m.currentSentenceEndPos - len(m.typedText)
+			if charsRemaining <= m.pregenerateThreshold && charsRemaining > 0 {
+				// Start async generation
+				m.generationPending = true
+				return m, tea.Batch(tickCmd(), m.generateNextSentenceCmd())
+			}
+		}
+
 		return m, tickCmd() // Continue ticking
+
+	case generationCompleteMsg:
+		// LLM generation completed successfully - show it immediately
+		m.nextSentenceBuffer = msg.sentence
+		m.nextSentenceReady = true
+		m.generationPending = false
+
+		// Append the new sentence to display text immediately
+		m.text += " " + msg.sentence
+
+		return m, nil
+
+	case generationErrorMsg:
+		// LLM generation failed - fallback to dummy or just continue
+		m.generationPending = false
+		m.nextSentenceReady = false
+		// Could log error or show message to user
+		return m, nil
 
 	case tea.KeyMsg:
 		// Exit keys
@@ -281,10 +521,42 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
-			// Check if completed
-			if m.typedText == m.text {
-				m.completed = true
-				return m, tea.Quit
+			// Check if completed current sentence
+			if len(m.typedText) >= m.currentSentenceEndPos {
+				if m.isLLMSource {
+					// LLM mode: transition to next sentence if ready
+					if m.nextSentenceReady {
+						// Analyze errors from the sentence just completed
+						errorChars, problemWords := analyzeErrors(m.typedText[:m.currentSentenceEndPos], m.text[:m.currentSentenceEndPos])
+
+						// Update for next sentence
+						m.lastSentence = m.nextSentenceBuffer
+						m.currentSentenceEndPos = len(m.text) // Move to end of newly appended text
+						m.nextSentenceReady = false
+
+						// Store error patterns for next generation
+						for _, char := range errorChars {
+							m.errorPatterns[char]++
+						}
+						m.problemWords = append(m.problemWords, problemWords...)
+
+						return m, nil
+					} else if m.generationPending {
+						// Wait for generation to complete
+						// Show loading indicator in View()
+						return m, nil
+					} else {
+						// No more text available - check if we've typed everything
+						if len(m.typedText) >= len(m.text) {
+							m.completed = true
+							return m, tea.Quit
+						}
+					}
+				} else {
+					// Normal mode: session complete
+					m.completed = true
+					return m, tea.Quit
+				}
 			}
 		}
 	}
@@ -319,6 +591,25 @@ func (m sessionModel) getCurrentAccuracy() float32 {
 	return (float32(correctChars) / float32(totalChars)) * 100
 }
 
+// generateNextSentenceCmd creates a command that generates the next sentence asynchronously
+func (m sessionModel) generateNextSentenceCmd() tea.Cmd {
+	return func() tea.Msg {
+		// Convert error pattern map to slice
+		errorChars := make([]rune, 0, len(m.errorPatterns))
+		for char := range m.errorPatterns {
+			errorChars = append(errorChars, char)
+		}
+
+		// Call LLM to generate next sentence
+		nextSentence, err := m.llmSource.GetNextSentence(m.lastSentence, errorChars, m.problemWords)
+		if err != nil {
+			return generationErrorMsg{err: err}
+		}
+
+		return generationCompleteMsg{sentence: nextSentence}
+	}
+}
+
 func (m sessionModel) View() string {
 	if !m.hasStarted {
 		return fmt.Sprintf("Session Duration: %d minutes\n\nUse UP/DOWN arrows to adjust\nPress ENTER to start\nPress ESC or CTRL-C to exit", m.selectedDuration)
@@ -343,13 +634,20 @@ func (m sessionModel) View() string {
 	remainingMinutes := int(remaining.Minutes())
 	remainingSeconds := int(remaining.Seconds()) % 60
 
-	statsHeader := fmt.Sprintf("Time Remaining: %d:%02d | WPM: %.0f | Accuracy: %.1f%% | Errors: %d\n\n",
+	statsHeader := fmt.Sprintf("Time Remaining: %d:%02d | WPM: %.0f | Accuracy: %.1f%% | Errors: %d",
 		remainingMinutes,
 		remainingSeconds,
 		currentWPM,
 		currentAccuracy,
 		m.errors,
 	)
+
+	// Add loading indicator if generation is pending
+	if m.generationPending {
+		statsHeader += " | ⏳ Generating..."
+	}
+
+	statsHeader += "\n\n"
 	result.WriteString(statsHeader)
 
 	// Reserve space for margins
@@ -428,7 +726,10 @@ func (m sessionModel) View() string {
 	return result.String()
 }
 
-func startSession(config types.Config, text string) (types.TypingSession, error) {
+func startSession(config types.Config, text string, textSource sources.TextSource) (types.TypingSession, error) {
+	// Check if we're using LLM source
+	llmSource, isLLM := textSource.(*sources.LLMSource)
+
 	// Create initial model
 	model := sessionModel{
 		text:             text,
@@ -439,11 +740,26 @@ func startSession(config types.Config, text string) (types.TypingSession, error)
 		completed:        false,
 		quit:             false,
 		hasStarted:       false,
-		width:            0,                // Will be set by WindowSizeMsg
-		height:           0,                // Will be set by WindowSizeMsg
-		viewportOffset:   0,                // Start at beginning
-		selectedDuration: 1,                // Default to 1 minute
-		sessionDuration:  0,                // Will be set when session starts
+		width:            0, // Will be set by WindowSizeMsg
+		height:           0, // Will be set by WindowSizeMsg
+		viewportOffset:   0, // Start at beginning
+		selectedDuration: 1, // Default to 1 minute
+		sessionDuration:  0, // Will be set when session starts
+
+		// LLM fields
+		isLLMSource:           isLLM,
+		llmSource:             llmSource,
+		lastSentence:          text, // First sentence becomes context
+		errorPatterns:         make(map[rune]int),
+		problemWords:          make([]string, 0),
+		generationPending:     false,
+		nextSentenceReady:     false,
+		nextSentenceBuffer:    "",
+		generationChan:        make(chan string, 1),
+		generationErrChan:     make(chan error, 1),
+		pregenerateThreshold:  config.Text.LLM.PregenerateThreshold,
+		currentSentenceEndPos: len(text), // Initialize to initial text length
+		config:                config,
 	}
 
 	// Run the Bubbletea program with alternate screen
@@ -490,7 +806,7 @@ func startSession(config types.Config, text string) (types.TypingSession, error)
 	return result, nil
 }
 
-func Run(config types.Config, text string) SessionResult {
+func Run(config types.Config, text string, textSource sources.TextSource) SessionResult {
 	stats, err := getUserStats(config)
 	if err != nil {
 		return SessionResult{
@@ -511,10 +827,28 @@ func Run(config types.Config, text string) SessionResult {
 
 	switch action {
 	case StartSession:
-		session, err := startSession(config, text)
+		session, err := startSession(config, text, textSource)
 		if err != nil {
 			return SessionResult{Error: err, Session: nil, Exited: false}
 		}
+
+		// Add session to stats
+		stats.Sessions = append(stats.Sessions, session)
+
+		// Save updated stats
+		err = saveUserStats(config, stats)
+		if err != nil {
+			// Log error but don't fail - we still show the results
+			fmt.Fprintf(os.Stderr, "Warning: Failed to save stats: %v\n", err)
+		}
+
+		// Show dashboard with results
+		err = showDashboard(config, session, stats)
+		if err != nil {
+			// Dashboard error shouldn't fail the whole thing
+			fmt.Fprintf(os.Stderr, "Warning: Failed to show dashboard: %v\n", err)
+		}
+
 		return SessionResult{Error: nil, Session: &session, Exited: false}
 
 	case Exit:
