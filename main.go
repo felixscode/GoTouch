@@ -1,16 +1,17 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+	"go-touch/internal/config"
 	"go-touch/internal/sources"
 	"go-touch/internal/types"
 	"go-touch/internal/ui"
 	"log"
 )
 
-var ConfigDir string = "config.yaml"
-
-func getText(config types.Config) (string, sources.TextSource, error) {
-	textSource, err := sources.NewTextSource(config.Text.Source, config.Text)
+func getText(cfg types.Config) (string, sources.TextSource, error) {
+	textSource, err := sources.NewTextSource(cfg.Text.Source, cfg.Text)
 	if err != nil {
 		return "", nil, err
 	}
@@ -19,11 +20,27 @@ func getText(config types.Config) (string, sources.TextSource, error) {
 }
 
 func main() {
-	var config, err = types.LoadConfig(ConfigDir)
+	// Parse command-line flags
+	configPath := flag.String("config", "", "Path to config file")
+	flag.Parse()
+
+	// Load or create config
+	cfg, cfgPath, err := config.LoadOrCreateConfig(*configPath)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to load config: %v", err)
 	}
-	text, textSource, err := getText(*config)
+
+	if cfgPath != "" {
+		fmt.Printf("Using config: %s\n", cfgPath)
+	}
+
+	// Ensure data directory exists for stats
+	dataDir, err := config.GetDataDir()
+	if err == nil {
+		config.EnsureDir(dataDir)
+	}
+
+	text, textSource, err := getText(*cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -33,9 +50,9 @@ func main() {
 		log.Fatal("Error: No text generated")
 	}
 
-	sessionResult := ui.Run(*config, text, textSource)
+	sessionResult := ui.Run(*cfg, text, textSource)
 	if sessionResult.Error != nil {
 		log.Fatal(sessionResult.Error)
 	}
-	// fmt.Println(sessionResult)
+	fmt.Println(sessionResult)
 }

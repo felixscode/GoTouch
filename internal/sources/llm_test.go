@@ -6,6 +6,133 @@ import (
 	"time"
 )
 
+// TestNewLLMSource_APIKeyFromFile tests loading API key from file
+func TestNewLLMSource_APIKeyFromFile(t *testing.T) {
+	// Remove env var
+	originalKey := os.Getenv("ANTHROPIC_API_KEY")
+	defer func() {
+		if originalKey != "" {
+			os.Setenv("ANTHROPIC_API_KEY", originalKey)
+		}
+	}()
+	os.Unsetenv("ANTHROPIC_API_KEY")
+
+	// Create api-key file
+	apiKeyContent := "test-key-from-file-123"
+	err := os.WriteFile("api-key", []byte(apiKeyContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create api-key file: %v", err)
+	}
+	defer os.Remove("api-key")
+
+	source, err := NewLLMSource("haiku", 5)
+
+	if err != nil {
+		t.Errorf("NewLLMSource() unexpected error: %v", err)
+	}
+
+	if source == nil {
+		t.Errorf("NewLLMSource() returned nil source")
+	}
+
+	if source.model != "claude-3-5-haiku-latest" {
+		t.Errorf("NewLLMSource() model = %v, want claude-3-5-haiku-latest", source.model)
+	}
+}
+
+func TestNewLLMSource_ModelSelection(t *testing.T) {
+	originalKey := os.Getenv("ANTHROPIC_API_KEY")
+	defer os.Setenv("ANTHROPIC_API_KEY", originalKey)
+	os.Setenv("ANTHROPIC_API_KEY", "test-key")
+
+	tests := []struct {
+		name          string
+		modelName     string
+		expectedModel string
+	}{
+		{
+			name:          "haiku model",
+			modelName:     "haiku",
+			expectedModel: "claude-3-5-haiku-latest",
+		},
+		{
+			name:          "sonnet model",
+			modelName:     "sonnet",
+			expectedModel: "claude-3-5-sonnet-latest",
+		},
+		{
+			name:          "empty defaults to haiku",
+			modelName:     "",
+			expectedModel: "claude-3-5-haiku-latest",
+		},
+		{
+			name:          "unknown defaults to haiku",
+			modelName:     "unknown",
+			expectedModel: "claude-3-5-haiku-latest",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source, err := NewLLMSource(tt.modelName, 5)
+
+			if err != nil {
+				t.Errorf("NewLLMSource() unexpected error: %v", err)
+			}
+
+			if source == nil {
+				t.Fatalf("NewLLMSource() returned nil")
+			}
+
+			if string(source.model) != tt.expectedModel {
+				t.Errorf("NewLLMSource() model = %v, want %v", source.model, tt.expectedModel)
+			}
+		})
+	}
+}
+
+func TestNewLLMSource_TimeoutConfiguration(t *testing.T) {
+	originalKey := os.Getenv("ANTHROPIC_API_KEY")
+	defer os.Setenv("ANTHROPIC_API_KEY", originalKey)
+	os.Setenv("ANTHROPIC_API_KEY", "test-key")
+
+	tests := []struct {
+		name            string
+		timeoutSeconds  int
+		expectedTimeout time.Duration
+	}{
+		{
+			name:            "5 second timeout",
+			timeoutSeconds:  5,
+			expectedTimeout: 5 * time.Second,
+		},
+		{
+			name:            "30 second timeout",
+			timeoutSeconds:  30,
+			expectedTimeout: 30 * time.Second,
+		},
+		{
+			name:            "zero timeout",
+			timeoutSeconds:  0,
+			expectedTimeout: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source, err := NewLLMSource("haiku", tt.timeoutSeconds)
+
+			if err != nil {
+				t.Errorf("NewLLMSource() unexpected error: %v", err)
+			}
+
+			if source.timeout != tt.expectedTimeout {
+				t.Errorf("NewLLMSource() timeout = %v, want %v", source.timeout, tt.expectedTimeout)
+			}
+		})
+	}
+}
+
 // TestNewLLMSource tests the constructor
 func TestNewLLMSource(t *testing.T) {
 	tests := []struct {

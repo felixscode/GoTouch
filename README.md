@@ -1,5 +1,7 @@
 # GoTouch
 
+[![Build and Release](https://github.com/felixscode/GoTouch/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/felixscode/GoTouch/actions/workflows/build-and-release.yml)
+
 A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive learning.
 
 ## Features
@@ -8,20 +10,18 @@ A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive
 - **Real-time Statistics**: Track your WPM, accuracy, and errors as you type
 - **Session History**: Automatic saving of typing sessions with historical statistics
 - **Terminal Theme Support**: Respects your terminal's color scheme for a seamless experience
-- **Smooth UX**: Centered cursor view with smooth scrolling and polished Bubbletea UI
-- **Flexible Text Sources**: Choose between LLM-generated content or dummy text
-- **Configurable Sessions**: Adjust session duration with up/down arrows before starting
+- **Minimal Overhead:** purely written on go for a fast and minimal experiance
 
 ## Installation
 
 ### Pre-built Binaries (Recommended)
 
-Download the latest pre-built binary for your platform from [GitHub Releases](https://github.com/YOUR_USERNAME/GoTouch/releases):
+Download the latest pre-built binary for your platform from [GitHub Releases](https://github.com/felixscode/GoTouch/releases):
 
 **Linux (x86_64):**
 ```bash
 # Download the latest release
-curl -LO https://github.com/YOUR_USERNAME/GoTouch/releases/latest/download/gotouch-linux-amd64
+curl -LO https://github.com/felixscode/GoTouch/releases/latest/download/gotouch-linux-amd64
 
 # Make it executable
 chmod +x gotouch-linux-amd64
@@ -30,16 +30,23 @@ chmod +x gotouch-linux-amd64
 sudo mv gotouch-linux-amd64 /usr/local/bin/gotouch
 ```
 
+**Linux (ARM64):**
+```bash
+curl -LO https://github.com/felixscode/GoTouch/releases/latest/download/gotouch-linux-arm64
+chmod +x gotouch-linux-arm64
+sudo mv gotouch-linux-arm64 /usr/local/bin/gotouch
+```
+
 **macOS (Intel):**
 ```bash
-curl -LO https://github.com/YOUR_USERNAME/GoTouch/releases/latest/download/gotouch-darwin-amd64
+curl -LO https://github.com/felixscode/GoTouch/releases/latest/download/gotouch-darwin-amd64
 chmod +x gotouch-darwin-amd64
 sudo mv gotouch-darwin-amd64 /usr/local/bin/gotouch
 ```
 
 **macOS (Apple Silicon):**
 ```bash
-curl -LO https://github.com/YOUR_USERNAME/GoTouch/releases/latest/download/gotouch-darwin-arm64
+curl -LO https://github.com/felixscode/GoTouch/releases/latest/download/gotouch-darwin-arm64
 chmod +x gotouch-darwin-arm64
 sudo mv gotouch-darwin-arm64 /usr/local/bin/gotouch
 ```
@@ -55,7 +62,7 @@ If you prefer to build from source:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/GoTouch.git
+git clone https://github.com/felixscode/GoTouch.git
 cd GoTouch
 
 # Build
@@ -85,11 +92,23 @@ go build -o gotouch
 
 ## Configuration
 
-GoTouch uses a `config.yaml` file for configuration. On first run, it will use default settings.
+GoTouch automatically manages configuration files in platform-specific directories:
+
+**Linux/macOS:**
+- Config: `~/.config/gotouch/config.yaml`
+- Stats: `~/.local/share/gotouch/user_stats.json`
+- API Key (optional): `~/.config/gotouch/api-key`
+
+**Windows:**
+- Config: `%APPDATA%\gotouch\config.yaml`
+- Stats: `%LOCALAPPDATA%\gotouch\user_stats.json`
+- API Key (optional): `%APPDATA%\gotouch\api-key`
+
+On first run, GoTouch will automatically create a default configuration file if none exists.
 
 ### Basic Configuration
 
-Create a `config.yaml` file in the same directory as the binary:
+The default `config.yaml` looks like this:
 
 ```yaml
 text:
@@ -103,8 +122,10 @@ text:
 ui:
   theme: "default"  # Options: "default" or "dark"
 stats:
-  file_dir: "user_stats.json"
+  file_dir: "~/.local/share/gotouch/user_stats.json"  # Auto-configured
 ```
+
+You can edit this file directly with your preferred text editor, or use a custom config file location with the `--config` flag.
 
 ### LLM Mode Setup (Optional)
 
@@ -121,13 +142,25 @@ For AI-powered adaptive typing practice:
    export ANTHROPIC_API_KEY="your-api-key-here"
    ```
 
-   **Method 2: API Key File**
+   **Method 2: API Key File (Recommended)**
    ```bash
-   # Create an api-key file in the same directory as the binary
-   echo "your-api-key-here" > api-key
+   # Linux/macOS
+   echo "your-api-key-here" > ~/.config/gotouch/api-key
+
+   # Windows (PowerShell)
+   echo "your-api-key-here" > $env:APPDATA\gotouch\api-key
    ```
 
 3. **Update config.yaml:**
+   ```bash
+   # Linux/macOS
+   nano ~/.config/gotouch/config.yaml
+
+   # Windows
+   notepad %APPDATA%\gotouch\config.yaml
+   ```
+
+   Change `source: dummy` to `source: llm`:
    ```yaml
    text:
      source: llm
@@ -175,9 +208,11 @@ gotouch --config /path/to/config.yaml
 
 ```
 GoTouch/
-├── main.go                 # Entry point
-├── config.yaml            # Configuration file
+├── main.go                 # Entry point with CLI flag parsing
 ├── internal/
+│   ├── config/           # Configuration management
+│   │   ├── paths.go      # Platform-specific path resolution
+│   │   └── default.go    # Default config generation
 │   ├── sources/          # Text source implementations
 │   │   ├── source.go     # Text source interface
 │   │   ├── llm.go        # Claude AI integration
@@ -189,8 +224,12 @@ GoTouch/
 │   └── ui/               # Terminal UI
 │       ├── tui.go        # Bubbletea application
 │       └── styles.go     # Color themes
-├── user_stats.json       # Auto-generated session history
 └── README.md
+
+User Data (auto-created):
+  ~/.config/gotouch/config.yaml      # Configuration (Linux/macOS)
+  ~/.local/share/gotouch/user_stats.json  # Session history
+  ~/.config/gotouch/api-key          # Optional API key file
 ```
 
 ## Development
@@ -276,7 +315,39 @@ Make sure you're using one of the built-in themes. The app automatically uses yo
 
 ### Session stats not saving
 
-Ensure the directory where you're running GoTouch has write permissions for creating `user_stats.json`.
+The app automatically creates the data directory (`~/.local/share/gotouch` on Linux/macOS). If you're seeing permission errors, check that your user has write access to this directory.
+
+### Migrating from old version
+
+If you have an existing `config.yaml` or `user_stats.json` in your project directory:
+
+**Linux/macOS:**
+```bash
+# Migrate config
+mkdir -p ~/.config/gotouch
+mv config.yaml ~/.config/gotouch/
+
+# Migrate stats
+mkdir -p ~/.local/share/gotouch
+mv user_stats.json ~/.local/share/gotouch/
+
+# Migrate API key (if exists)
+mv api-key ~/.config/gotouch/
+```
+
+**Windows:**
+```powershell
+# Migrate config
+mkdir $env:APPDATA\gotouch
+move config.yaml $env:APPDATA\gotouch\
+
+# Migrate stats
+mkdir $env:LOCALAPPDATA\gotouch
+move user_stats.json $env:LOCALAPPDATA\gotouch\
+
+# Migrate API key (if exists)
+move api-key $env:APPDATA\gotouch\
+```
 
 ---
 

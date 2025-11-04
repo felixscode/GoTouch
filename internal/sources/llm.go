@@ -3,6 +3,7 @@ package sources
 import (
 	"context"
 	"fmt"
+	"go-touch/internal/config"
 	"os"
 	"strings"
 	"time"
@@ -21,9 +22,13 @@ func NewLLMSource(modelName string, timeoutSeconds int) (*LLMSource, error) {
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
 	if apiKey == "" {
 		// Try loading from api-key file as fallback
-		keyData, err := os.ReadFile("api-key")
-		if err == nil && len(keyData) > 0 {
-			apiKey = strings.TrimSpace(string(keyData))
+		// Check config directory first, then current directory
+		apiKeyPath := config.FindAPIKeyFile()
+		if apiKeyPath != "" {
+			keyData, err := os.ReadFile(apiKeyPath)
+			if err == nil && len(keyData) > 0 {
+				apiKey = strings.TrimSpace(string(keyData))
+			}
 		}
 	}
 
