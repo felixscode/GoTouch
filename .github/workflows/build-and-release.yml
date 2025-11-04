@@ -1,0 +1,134 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Run tests with coverage
+        run: go test -cover ./...
+
+  build:
+    name: Build Binaries
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            output: gotouch-linux-amd64
+          - goos: linux
+            goarch: arm64
+            output: gotouch-linux-arm64
+          - goos: darwin
+            goarch: amd64
+            output: gotouch-darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            output: gotouch-darwin-arm64
+          - goos: windows
+            goarch: amd64
+            output: gotouch-windows-amd64.exe
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -ldflags="-s -w" -o ${{ matrix.output }} .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.output }}
+          path: ${{ matrix.output }}
+          retention-days: 1
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./binaries
+          merge-multiple: true
+
+      - name: Display structure of downloaded files
+        run: ls -R ./binaries
+
+      - name: Get short SHA
+        id: sha
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Create/Update Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest Build (main)
+          body: |
+            Automated build from main branch
+
+            **Commit:** ${{ github.sha }}
+            **Short SHA:** ${{ steps.sha.outputs.short_sha }}
+            **Build Date:** ${{ github.event.head_commit.timestamp }}
+            **Author:** ${{ github.event.head_commit.author.name }}
+
+            ### Downloads
+            Download the appropriate binary for your platform:
+            - Linux (x86_64): `gotouch-linux-amd64`
+            - Linux (ARM64): `gotouch-linux-arm64`
+            - macOS (Intel): `gotouch-darwin-amd64`
+            - macOS (Apple Silicon): `gotouch-darwin-arm64`
+            - Windows (x86_64): `gotouch-windows-amd64.exe`
+
+            Make the binary executable (Linux/macOS):
+            ```bash
+            chmod +x gotouch-*
+            ```
+          files: |
+            binaries/gotouch-*
+          prerelease: false
+          draft: false
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
