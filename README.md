@@ -317,38 +317,5 @@ Make sure you're using one of the built-in themes. The app automatically uses yo
 
 The app automatically creates the data directory (`~/.local/share/gotouch` on Linux/macOS). If you're seeing permission errors, check that your user has write access to this directory.
 
-### Migrating from old version
-
-If you have an existing `config.yaml` or `user_stats.json` in your project directory:
-
-**Linux/macOS:**
-```bash
-# Migrate config
-mkdir -p ~/.config/gotouch
-mv config.yaml ~/.config/gotouch/
-
-# Migrate stats
-mkdir -p ~/.local/share/gotouch
-mv user_stats.json ~/.local/share/gotouch/
-
-# Migrate API key (if exists)
-mv api-key ~/.config/gotouch/
-```
-
-**Windows:**
-```powershell
-# Migrate config
-mkdir $env:APPDATA\gotouch
-move config.yaml $env:APPDATA\gotouch\
-
-# Migrate stats
-mkdir $env:LOCALAPPDATA\gotouch
-move user_stats.json $env:LOCALAPPDATA\gotouch\
-
-# Migrate API key (if exists)
-move api-key $env:APPDATA\gotouch\
-```
-
----
 
 **Happy Typing!** 🚀
