@@ -6,18 +6,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Report Card](https://goreportcard.com/badge/github.com/felixscode/GoTouch)](https://goreportcard.com/report/github.com/felixscode/GoTouch)
 
+
+
 A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive learning.
+
+![gif](./gotouch.gif)
 
 ## Features
 
 - **AI-Powered Adaptive Learning**: Uses Claude AI to generate contextual typing exercises that adapt to your mistakes
 - **Real-time Statistics**: Track your WPM, accuracy, and errors as you type
 - **Session History**: Automatic saving of typing sessions with historical statistics
-- **Terminal Theme Support**: Respects your terminal's color scheme for a seamless experience
-- **Minimal Overhead**: Purely written in Go for a fast and minimal experience
-- **Smooth UX**: Centered cursor view with smooth scrolling and polished Bubbletea UI
-- **Flexible Text Sources**: Choose between LLM-generated content or dummy text
-- **Configurable Sessions**: Adjust session duration with up/down arrows before starting
+- **Pure Go**: 100% written in go.
 
 ## Installation
 
@@ -84,6 +84,8 @@ go build -o gotouch
 
 ## Quick Start
 
+> llm mode is recommended [LLM Mode Setup](#llm-mode-setup-optional) make suer to set it up beforehand
+
 1. **Run GoTouch:**
    ```bash
    gotouch
@@ -134,7 +136,7 @@ stats:
 
 You can edit this file directly with your preferred text editor, or use a custom config file location with the `--config` flag.
 
-### LLM Mode Setup (Optional)
+### LLM Mode Setup (Recommendet)
 
 For AI-powered adaptive typing practice:
 
