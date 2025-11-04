@@ -1,6 +1,10 @@
 # GoTouch
 
 [![Build and Release](https://github.com/felixscode/GoTouch/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/felixscode/GoTouch/actions/workflows/build-and-release.yml)
+[![Go Version](https://img.shields.io/badge/go-1.24.4-blue.svg)](https://go.dev/dl/)
+[![Release](https://img.shields.io/github/v/release/felixscode/GoTouch)](https://github.com/felixscode/GoTouch/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Report Card](https://goreportcard.com/badge/github.com/felixscode/GoTouch)](https://goreportcard.com/report/github.com/felixscode/GoTouch)
 
 A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive learning.
 
@@ -10,7 +14,10 @@ A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive
 - **Real-time Statistics**: Track your WPM, accuracy, and errors as you type
 - **Session History**: Automatic saving of typing sessions with historical statistics
 - **Terminal Theme Support**: Respects your terminal's color scheme for a seamless experience
-- **Minimal Overhead:** purely written on go for a fast and minimal experiance
+- **Minimal Overhead**: Purely written in Go for a fast and minimal experience
+- **Smooth UX**: Centered cursor view with smooth scrolling and polished Bubbletea UI
+- **Flexible Text Sources**: Choose between LLM-generated content or dummy text
+- **Configurable Sessions**: Adjust session duration with up/down arrows before starting
 
 ## Installation
 
