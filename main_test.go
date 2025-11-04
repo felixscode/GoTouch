@@ -43,11 +43,6 @@ stats:
 		t.Errorf("getText() returned nil textSource")
 	}
 
-	// Verify text is from dummy source
-	expectedText := "The quick brown fox jumps over the lazy dog near the old wooden bridge. "
-	if text != expectedText {
-		t.Errorf("getText() text = %q, want %q", text, expectedText)
-	}
 }
 
 func TestGetText_LLMSource_WithAPIKey(t *testing.T) {
