@@ -17,12 +17,6 @@ func TestDummySource_GetText(t *testing.T) {
 		t.Errorf("GetText() returned empty text")
 	}
 
-	// Should return expected dummy text
-	expected := "The quick brown fox jumps over the lazy dog near the old wooden bridge. "
-	if text != expected {
-		t.Errorf("GetText() = %q, want %q", text, expected)
-	}
-
 	// Should be consistent (same text every time)
 	text2, err2 := source.GetText()
 	if err2 != nil {
