@@ -98,7 +98,10 @@ go build -o gotouch
 gotouch
 ```
 
-Use arrow keys to set duration, Enter to start, type the text. Stats appear at the end.
+1. Use arrow keys to set session duration (1-60 minutes)
+2. Press Enter to start typing
+3. Type the displayed text (correct characters in green, errors in red)
+4. View your stats when the session ends
 
 ## LLM Setup (Optional but Recommended)
 
@@ -164,9 +167,18 @@ See [config.example.yaml](config.example.yaml) for all options.
 
 ## Keyboard Controls
 
-**Before Session:** ↑/↓ adjust duration, Enter to start
-**During Session:** Type naturally, Backspace to correct, Esc to quit
-**After Session:** Enter to exit
+**Before Session:**
+- ↑/↓ - Adjust duration (1-60 minutes)
+- Enter - Start typing session
+- Esc/Ctrl+C - Exit
+
+**During Session:**
+- Type naturally - Cursor moves as you type
+- Backspace - Correct mistakes
+- Esc/Ctrl+C - Quit session early
+
+**After Session:**
+- Enter - Exit and save stats
 
 ## Development
 
