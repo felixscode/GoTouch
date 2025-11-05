@@ -921,10 +921,7 @@ func (m sessionModel) View() string {
 
 		var configContent strings.Builder
 		configContent.WriteString(DefaultTheme.Info.Render("Session Duration:") + "\n\n")
-		configContent.WriteString(lipgloss.NewStyle().
-			Foreground(lipgloss.Color("3")).
-			Bold(true).
-			Render(fmt.Sprintf("       %s", durationText)) + "\n\n")
+		configContent.WriteString(DefaultTheme.Highlight.Render(fmt.Sprintf("       %s", durationText)) + "\n\n")
 		configContent.WriteString(DefaultTheme.Muted.Render("Use ↑/↓ arrows to adjust (1-60 minutes)"))
 
 		configBox := lipgloss.NewStyle().
@@ -1079,7 +1076,7 @@ func (m sessionModel) View() string {
 	// Display mistyped words in boxes
 	if len(m.currentProblemWords) > 0 {
 		result.WriteString("\n\n")
-		result.WriteString(DefaultTheme.Muted.Render("Mistyped words:"))
+		result.WriteString(DefaultTheme.Muted.Render("Mistyped words for ai suggestions:"))
 		result.WriteString("\n")
 
 		// Create smaller boxes for each mistyped word
