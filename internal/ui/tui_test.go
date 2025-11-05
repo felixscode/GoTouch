@@ -461,6 +461,7 @@ func TestSessionResult_String(t *testing.T) {
 	tests := []struct {
 		name     string
 		result   SessionResult
+		expected string
 		contains []string
 	}{
 		{
@@ -468,14 +469,14 @@ func TestSessionResult_String(t *testing.T) {
 			result: SessionResult{
 				Exited: true,
 			},
-			contains: []string{"exited without starting"},
+			expected: "", // Now returns empty string (dashboard handles display)
 		},
 		{
 			name: "error",
 			result: SessionResult{
 				Error: os.ErrNotExist,
 			},
-			contains: []string{"error"},
+			contains: []string{"error"}, // Still shows errors
 		},
 		{
 			name: "successful session",
@@ -487,7 +488,7 @@ func TestSessionResult_String(t *testing.T) {
 					Duration: 60 * time.Second,
 				},
 			},
-			contains: []string{"SESSION SUMMARY", "WPM", "Accuracy", "Errors", "Duration", "saved successfully"},
+			expected: "", // Now returns empty string (dashboard handles display)
 		},
 	}
 
@@ -495,6 +496,14 @@ func TestSessionResult_String(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.result.String()
 
+			// If expected is set, check exact match
+			if tt.expected != "" || (tt.expected == "" && len(tt.contains) == 0) {
+				if result != tt.expected {
+					t.Errorf("String() = %q, want %q", result, tt.expected)
+				}
+			}
+
+			// Check for contains strings
 			for _, expected := range tt.contains {
 				if !contains(result, expected) {
 					t.Errorf("String() output missing %q\nGot: %s", expected, result)

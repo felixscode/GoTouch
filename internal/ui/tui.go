@@ -110,7 +110,7 @@ type SessionResult struct {
 
 func (s SessionResult) String() string {
 	if s.Exited {
-		return "Session exited without starting."
+		return ""
 	}
 
 	if s.Error != nil {
@@ -118,21 +118,11 @@ func (s SessionResult) String() string {
 	}
 
 	if s.Session == nil {
-		return "No session data available."
+		return ""
 	}
 
-	// Format the session stats nicely
-	var result strings.Builder
-	result.WriteString("\n╔════════════════════════════════════════╗\n")
-	result.WriteString("║          SESSION SUMMARY               ║\n")
-	result.WriteString("╚════════════════════════════════════════╝\n")
-	result.WriteString(fmt.Sprintf("  WPM:       %.0f\n", s.Session.WPM))
-	result.WriteString(fmt.Sprintf("  Accuracy:  %.1f%%\n", s.Session.Accuracy))
-	result.WriteString(fmt.Sprintf("  Errors:    %d\n", s.Session.Errors))
-	result.WriteString(fmt.Sprintf("  Duration:  %s\n", formatDuration(s.Session.Duration)))
-	result.WriteString("\nSession saved successfully!\n")
-
-	return result.String()
+	// Session completed successfully - dashboard already shown, no need for text summary
+	return ""
 }
 
 // enum
@@ -1089,33 +1079,24 @@ func (m sessionModel) View() string {
 	// Display mistyped words in boxes
 	if len(m.currentProblemWords) > 0 {
 		result.WriteString("\n\n")
-		result.WriteString(DefaultTheme.Muted.Render("Mistyped words:"))
-		result.WriteString("\n")
+		result.WriteString(DefaultTheme.Muted.Render("Mistyped words: "))
 
-		// Create boxes for each mistyped word
+		// Create smaller boxes for each mistyped word
 		boxStyle := lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("8")). // Grey border
-			Padding(0, 1).
-			MarginRight(1)
+			Padding(0, 0)                           // Minimal padding for 75% smaller boxes
 
-		// Render boxes in a row, wrapping if needed
-		currentLineWidth := 0
+		// Collect all boxes
+		var boxes []string
 		for _, word := range m.currentProblemWords {
-			// Calculate box width (word length + padding + borders)
-			boxWidth := len(word) + 4
-
-			// Check if we need to wrap to next line
-			if currentLineWidth > 0 && currentLineWidth+boxWidth > terminalWidth-4 {
-				result.WriteString("\n")
-				currentLineWidth = 0
-			}
-
-			// Render the box
 			box := boxStyle.Render(word)
-			result.WriteString(box)
-			currentLineWidth += boxWidth
+			boxes = append(boxes, box)
 		}
+
+		// Join boxes horizontally with space separator
+		boxesRow := lipgloss.JoinHorizontal(lipgloss.Top, boxes...)
+		result.WriteString(boxesRow)
 		result.WriteString("\n")
 	}
 
