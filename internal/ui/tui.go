@@ -196,14 +196,14 @@ func (m welcomeModel) View() string {
 			Align(lipgloss.Center).
 			Width(60).
 			Render(fmt.Sprintf(
-				"%s WPM: %.0f | %s WPM: %.0f | %s: %.1f%% | %s: %d",
+				"%s: %.0f | %s: %.0f | %s: %.1f%% | %s: %d",
 				DefaultTheme.Info.Render("Avg"),
 				avgWPM,
 				DefaultTheme.Highlight.Render("Best"),
 				bestWPM,
-				DefaultTheme.Info.Render("Accuracy"),
+				DefaultTheme.Info.Render("Acc"),
 				avgAccuracy,
-				DefaultTheme.Info.Render("Sessions"),
+				DefaultTheme.Info.Render("Sess"),
 				len(m.stats.Sessions),
 			))
 
