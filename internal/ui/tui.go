@@ -1079,7 +1079,8 @@ func (m sessionModel) View() string {
 	// Display mistyped words in boxes
 	if len(m.currentProblemWords) > 0 {
 		result.WriteString("\n\n")
-		result.WriteString(DefaultTheme.Muted.Render("Mistyped words: "))
+		result.WriteString(DefaultTheme.Muted.Render("Mistyped words:"))
+		result.WriteString("\n")
 
 		// Create smaller boxes for each mistyped word
 		boxStyle := lipgloss.NewStyle().
