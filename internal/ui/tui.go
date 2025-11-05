@@ -183,7 +183,10 @@ func (m welcomeModel) View() string {
 `
 	s.WriteString(DefaultTheme.Title.Render(logo))
 	s.WriteString("\n")
-	s.WriteString(DefaultTheme.Subtitle.Render("      AI-Powered Touch Typing Trainer"))
+	centeredSubtitle := lipgloss.NewStyle().
+		Align(lipgloss.Center).
+		Render(DefaultTheme.Subtitle.Render("AI-Powered Touch Typing Trainer"))
+	s.WriteString(centeredSubtitle)
 	s.WriteString("\n\n")
 
 	// Stats summary if available
