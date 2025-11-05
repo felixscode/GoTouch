@@ -630,8 +630,8 @@ func TestWelcomeModel_View(t *testing.T) {
 	view := model.View()
 
 	// Check that view contains expected elements
-	if !contains(view, "Welcome to GoTouch") {
-		t.Errorf("View() missing 'Welcome to GoTouch'")
+	if !contains(view, "AI-Powered Touch Typing Trainer") {
+		t.Errorf("View() missing subtitle")
 	}
 
 	if !contains(view, "Lets Exercise") {
@@ -709,7 +709,7 @@ func TestSessionModel_View_NotStarted(t *testing.T) {
 
 	view := model.View()
 
-	if !contains(view, "Session Duration: 5 minutes") {
+	if !contains(view, "5 minutes") {
 		t.Errorf("View() missing session duration display")
 	}
 

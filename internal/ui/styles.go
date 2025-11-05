@@ -3,12 +3,22 @@ package ui
 import "github.com/charmbracelet/lipgloss"
 
 type Theme struct {
-	Name       string
-	Correct    lipgloss.Style
-	Incorrect  lipgloss.Style
-	Current    lipgloss.Style
-	Normal     lipgloss.Style
-	Background lipgloss.Style
+	Name         string
+	Correct      lipgloss.Style
+	Incorrect    lipgloss.Style
+	Current      lipgloss.Style
+	Normal       lipgloss.Style
+	Background   lipgloss.Style
+	Title        lipgloss.Style
+	Subtitle     lipgloss.Style
+	Border       lipgloss.Style
+	Highlight    lipgloss.Style
+	Muted        lipgloss.Style
+	Success      lipgloss.Style
+	Warning      lipgloss.Style
+	Info         lipgloss.Style
+	ProgressBar  lipgloss.Style
+	ProgressFill lipgloss.Style
 }
 
 var (
@@ -25,6 +35,34 @@ var (
 			Foreground(lipgloss.Color("7")), // Terminal white/default
 		Background: lipgloss.NewStyle().
 			Background(lipgloss.Color("0")), // Terminal black
+		Title: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("6")).
+			Bold(true).
+			MarginBottom(1),
+		Subtitle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("5")).
+			Italic(true),
+		Border: lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("6")).
+			Padding(1, 2),
+		Highlight: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("3")).
+			Bold(true),
+		Muted: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("8")),
+		Success: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("2")).
+			Bold(true),
+		Warning: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("3")).
+			Bold(true),
+		Info: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("4")),
+		ProgressBar: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("8")),
+		ProgressFill: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("6")),
 	}
 
 	DarkTheme = Theme{
@@ -40,5 +78,33 @@ var (
 			Foreground(lipgloss.Color("15")), // Bright terminal white
 		Background: lipgloss.NewStyle().
 			Background(lipgloss.Color("0")), // Terminal black
+		Title: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("14")).
+			Bold(true).
+			MarginBottom(1),
+		Subtitle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("13")).
+			Italic(true),
+		Border: lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("14")).
+			Padding(1, 2),
+		Highlight: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("11")).
+			Bold(true),
+		Muted: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("8")),
+		Success: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("10")).
+			Bold(true),
+		Warning: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("11")).
+			Bold(true),
+		Info: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("12")),
+		ProgressBar: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("8")),
+		ProgressFill: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("14")),
 	}
 )

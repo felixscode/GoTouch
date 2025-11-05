@@ -11,6 +11,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func getUserStats(config types.Config) (types.UserStats, error) {
@@ -179,19 +180,72 @@ func (m welcomeModel) Init() tea.Cmd {
 }
 
 func (m welcomeModel) View() string {
-	s := "Welcome to GoTouch!\n\n"
+	var s strings.Builder
 
-	// Menu options
-	for i, choice := range m.choices {
-		cursor := " " // no cursor
-		if m.cursor == i {
-			cursor = ">" // cursor points to current selection
-		}
-		s += fmt.Sprintf("%s %s\n", cursor, choice.String())
+	// ASCII Art Logo
+	logo := `
+  ██████╗  ██████╗ ████████╗ ██████╗ ██╗   ██╗ ██████╗██╗  ██╗
+ ██╔════╝ ██╔═══██╗╚══██╔══╝██╔═══██╗██║   ██║██╔════╝██║  ██║
+ ██║  ███╗██║   ██║   ██║   ██║   ██║██║   ██║██║     ███████║
+ ██║   ██║██║   ██║   ██║   ██║   ██║██║   ██║██║     ██╔══██║
+ ╚██████╔╝╚██████╔╝   ██║   ╚██████╔╝╚██████╔╝╚██████╗██║  ██║
+  ╚═════╝  ╚═════╝    ╚═╝    ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝
+`
+	s.WriteString(DefaultTheme.Title.Render(logo))
+	s.WriteString("\n")
+	s.WriteString(DefaultTheme.Subtitle.Render("      AI-Powered Touch Typing Trainer"))
+	s.WriteString("\n\n")
+
+	// Stats summary if available
+	if len(m.stats.Sessions) > 0 {
+		avgWPM, bestWPM, avgAccuracy := calculateHistoricalStats(m.stats)
+		statsBox := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("6")).
+			Padding(0, 1).
+			Render(fmt.Sprintf(
+				"%s WPM: %.0f | %s WPM: %.0f | %s: %.1f%% | %s: %d",
+				DefaultTheme.Info.Render("Avg"),
+				avgWPM,
+				DefaultTheme.Success.Render("Best"),
+				bestWPM,
+				DefaultTheme.Info.Render("Accuracy"),
+				avgAccuracy,
+				DefaultTheme.Info.Render("Sessions"),
+				len(m.stats.Sessions),
+			))
+		s.WriteString(statsBox)
+		s.WriteString("\n\n")
 	}
 
-	s += "\nUse arrow keys to navigate, Enter to select, q to quit.\n"
-	return s
+	// Menu options with better styling
+	menuBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("5")).
+		Padding(1, 2).
+		Width(50)
+
+	var menu strings.Builder
+	for i, choice := range m.choices {
+		cursor := "  " // no cursor
+		if m.cursor == i {
+			cursor = DefaultTheme.Highlight.Render("▶ ")
+		}
+
+		choiceText := choice.String()
+		if m.cursor == i {
+			choiceText = DefaultTheme.Highlight.Render(choiceText)
+		}
+
+		menu.WriteString(fmt.Sprintf("%s %s\n", cursor, choiceText))
+	}
+
+	s.WriteString(menuBox.Render(menu.String()))
+	s.WriteString("\n\n")
+	s.WriteString(DefaultTheme.Muted.Render("Use arrow keys (↑/↓) to navigate • Enter to select • q/Ctrl+C to quit"))
+	s.WriteString("\n")
+
+	return s.String()
 }
 
 func (m welcomeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -282,29 +336,97 @@ func (m dashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m dashboardModel) View() string {
 	var s strings.Builder
 
-	s.WriteString("╔════════════════════════════════════════╗\n")
-	s.WriteString("║        SESSION COMPLETE!               ║\n")
-	s.WriteString("╚════════════════════════════════════════╝\n\n")
+	// Title with celebration
+	title := DefaultTheme.Title.Render("🎉 SESSION COMPLETE! 🎉")
+	s.WriteString(lipgloss.NewStyle().
+		Width(60).
+		Align(lipgloss.Center).
+		Render(title))
+	s.WriteString("\n\n")
 
-	// Current session stats
-	s.WriteString("📊 Your Performance:\n")
-	s.WriteString(fmt.Sprintf("   WPM:      %.0f\n", m.currentSession.WPM))
-	s.WriteString(fmt.Sprintf("   Accuracy: %.1f%%\n", m.currentSession.Accuracy))
-	s.WriteString(fmt.Sprintf("   Errors:   %d\n", m.currentSession.Errors))
-	s.WriteString(fmt.Sprintf("   Duration: %s\n\n", formatDuration(m.currentSession.Duration)))
+	// Current session stats in a bordered box
+	var sessionStats strings.Builder
+	sessionStats.WriteString(DefaultTheme.Success.Render("📊 Your Performance") + "\n\n")
 
-	// Historical stats
+	// Determine performance level
+	performanceEmoji := "⭐"
+	if m.currentSession.WPM >= 60 && m.currentSession.Accuracy >= 95 {
+		performanceEmoji = "🏆"
+	} else if m.currentSession.WPM >= 40 && m.currentSession.Accuracy >= 90 {
+		performanceEmoji = "🌟"
+	}
+
+	sessionStats.WriteString(fmt.Sprintf("%s WPM:      %s\n",
+		DefaultTheme.Info.Render("│"),
+		DefaultTheme.Highlight.Render(fmt.Sprintf("%.0f %s", m.currentSession.WPM, performanceEmoji))))
+	sessionStats.WriteString(fmt.Sprintf("%s Accuracy: %s\n",
+		DefaultTheme.Info.Render("│"),
+		DefaultTheme.Success.Render(fmt.Sprintf("%.1f%%", m.currentSession.Accuracy))))
+	sessionStats.WriteString(fmt.Sprintf("%s Errors:   %s\n",
+		DefaultTheme.Info.Render("│"),
+		fmt.Sprintf("%d", m.currentSession.Errors)))
+	sessionStats.WriteString(fmt.Sprintf("%s Duration: %s\n",
+		DefaultTheme.Info.Render("│"),
+		formatDuration(m.currentSession.Duration)))
+
+	sessionBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("2")).
+		Padding(1, 2).
+		Width(50).
+		Render(sessionStats.String())
+
+	s.WriteString(sessionBox)
+	s.WriteString("\n\n")
+
+	// Historical stats in a bordered box
 	if len(m.allStats.Sessions) > 0 {
 		avgWPM, bestWPM, avgAccuracy := calculateHistoricalStats(m.allStats)
 
-		s.WriteString("📈 Historical Stats:\n")
-		s.WriteString(fmt.Sprintf("   Average WPM:    %.0f\n", avgWPM))
-		s.WriteString(fmt.Sprintf("   Best WPM:       %.0f\n", bestWPM))
-		s.WriteString(fmt.Sprintf("   Avg Accuracy:   %.1f%%\n", avgAccuracy))
-		s.WriteString(fmt.Sprintf("   Total Sessions: %d\n\n", len(m.allStats.Sessions)))
+		var histStats strings.Builder
+		histStats.WriteString(DefaultTheme.Info.Render("📈 Historical Stats") + "\n\n")
+		histStats.WriteString(fmt.Sprintf("%s Average WPM:    %.0f\n",
+			DefaultTheme.Muted.Render("│"), avgWPM))
+		histStats.WriteString(fmt.Sprintf("%s Best WPM:       %s\n",
+			DefaultTheme.Muted.Render("│"),
+			DefaultTheme.Success.Render(fmt.Sprintf("%.0f", bestWPM))))
+		histStats.WriteString(fmt.Sprintf("%s Avg Accuracy:   %.1f%%\n",
+			DefaultTheme.Muted.Render("│"), avgAccuracy))
+		histStats.WriteString(fmt.Sprintf("%s Total Sessions: %d\n",
+			DefaultTheme.Muted.Render("│"), len(m.allStats.Sessions)))
+
+		histBox := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("4")).
+			Padding(1, 2).
+			Width(50).
+			Render(histStats.String())
+
+		s.WriteString(histBox)
+		s.WriteString("\n\n")
 	}
 
-	s.WriteString("Press Enter to exit...")
+	// Encouraging message based on performance
+	var message string
+	if m.currentSession.Accuracy >= 95 && m.currentSession.WPM >= 50 {
+		message = "Outstanding! You're a typing master! 🚀"
+	} else if m.currentSession.Accuracy >= 90 && m.currentSession.WPM >= 40 {
+		message = "Great job! Keep up the excellent work! ✨"
+	} else if m.currentSession.Accuracy >= 85 {
+		message = "Good progress! Practice makes perfect! 💪"
+	} else {
+		message = "Keep practicing! You're improving! 🌱"
+	}
+
+	s.WriteString(lipgloss.NewStyle().
+		Foreground(lipgloss.Color("5")).
+		Italic(true).
+		Width(50).
+		Align(lipgloss.Center).
+		Render(message))
+	s.WriteString("\n\n")
+
+	s.WriteString(DefaultTheme.Muted.Render("Press Enter to exit..."))
 
 	return s.String()
 }
@@ -362,19 +484,21 @@ type sessionModel struct {
 	selectedDuration int           // selected duration in minutes (for setup UI)
 
 	// LLM pregeneration fields
-	isLLMSource          bool               // Flag for LLM mode
-	llmSource            *sources.LLMSource // LLM source for generating text
-	lastSentence         string             // Previous sentence for context
-	errorPatterns        map[rune]int       // Track char error frequency
-	problemWords         []string           // Words with mistakes
-	generationPending    bool               // Is LLM call in progress?
-	nextSentenceReady    bool               // Next sentence generated?
-	nextSentenceBuffer   string             // Buffered next sentence
-	generationChan       chan string        // Channel for async generation
-	generationErrChan    chan error         // Channel for generation errors
-	pregenerateThreshold int                // Chars before end to trigger
-	currentSentenceEndPos int               // Position where current sentence ends
-	config               types.Config       // Config for LLM settings
+	isLLMSource           bool               // Flag for LLM mode
+	llmSource             *sources.LLMSource // LLM source for generating text
+	lastSentence          string             // Previous sentence for context
+	errorPatterns         map[rune]int       // Track char error frequency
+	problemWords          []string           // Words with mistakes (accumulated for LLM)
+	currentProblemWords   []string           // Words mistyped in current sentence (for display)
+	lastWordEnd           int                // Track last completed word position
+	generationPending     bool               // Is LLM call in progress?
+	nextSentenceReady     bool               // Next sentence generated?
+	nextSentenceBuffer    string             // Buffered next sentence
+	generationChan        chan string        // Channel for async generation
+	generationErrChan     chan error         // Channel for generation errors
+	pregenerateThreshold  int                // Chars before end to trigger
+	currentSentenceEndPos int                // Position where current sentence ends
+	config                types.Config       // Config for LLM settings
 }
 
 func (m sessionModel) Init() tea.Cmd {
@@ -399,6 +523,78 @@ type generationCompleteMsg struct {
 
 type generationErrorMsg struct {
 	err error
+}
+
+// checkForMistypedWord checks if the user just completed a word and if it was mistyped
+func (m *sessionModel) checkForMistypedWord() {
+	typedLen := len(m.typedText)
+
+	// Check if we just typed a space (completed a word)
+	if typedLen > 0 && typedLen > m.lastWordEnd {
+		// Check if the last character is a space or if we reached the end of a word in target text
+		if (typedLen <= len(m.text) && m.typedText[typedLen-1] == ' ') ||
+		   (typedLen == len(m.text)) {
+
+			// Extract the word we just typed
+			wordStart := m.lastWordEnd
+			// Skip leading spaces
+			for wordStart < typedLen && m.typedText[wordStart] == ' ' {
+				wordStart++
+			}
+
+			wordEnd := typedLen
+			// Don't include trailing space
+			if wordEnd > 0 && typedLen <= len(m.typedText) && m.typedText[wordEnd-1] == ' ' {
+				wordEnd--
+			}
+
+			if wordStart < wordEnd {
+				typedWord := m.typedText[wordStart:wordEnd]
+
+				// Extract corresponding word from target text
+				targetWordEnd := wordEnd
+				if targetWordEnd > len(m.text) {
+					targetWordEnd = len(m.text)
+				}
+
+				targetWordStart := wordStart
+				if targetWordStart > len(m.text) {
+					targetWordStart = len(m.text)
+				}
+
+				// Skip leading spaces in target
+				for targetWordStart < targetWordEnd && targetWordStart < len(m.text) && m.text[targetWordStart] == ' ' {
+					targetWordStart++
+				}
+
+				// Don't include trailing space in target
+				if targetWordEnd > 0 && targetWordEnd <= len(m.text) && m.text[targetWordEnd-1] == ' ' {
+					targetWordEnd--
+				}
+
+				if targetWordStart < targetWordEnd && targetWordEnd <= len(m.text) {
+					targetWord := m.text[targetWordStart:targetWordEnd]
+
+					// Compare the words
+					if typedWord != targetWord {
+						// Word was mistyped - add to current problem words if not already there
+						alreadyAdded := false
+						for _, w := range m.currentProblemWords {
+							if w == typedWord {
+								alreadyAdded = true
+								break
+							}
+						}
+						if !alreadyAdded && len(m.currentProblemWords) < 10 { // Limit to 10 words
+							m.currentProblemWords = append(m.currentProblemWords, typedWord)
+						}
+					}
+				}
+			}
+
+			m.lastWordEnd = typedLen
+		}
+	}
 }
 
 func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -521,6 +717,9 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
+			// Check if we just completed a word and if it was mistyped
+			m.checkForMistypedWord()
+
 			// Check if completed current sentence
 			if len(m.typedText) >= m.currentSentenceEndPos {
 				if m.isLLMSource {
@@ -539,6 +738,10 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							m.errorPatterns[char]++
 						}
 						m.problemWords = append(m.problemWords, problemWords...)
+
+						// Clear current problem words display for new sentence
+						m.currentProblemWords = make([]string, 0)
+						m.lastWordEnd = len(m.typedText)
 
 						return m, nil
 					} else if m.generationPending {
@@ -612,7 +815,50 @@ func (m sessionModel) generateNextSentenceCmd() tea.Cmd {
 
 func (m sessionModel) View() string {
 	if !m.hasStarted {
-		return fmt.Sprintf("Session Duration: %d minutes\n\nUse UP/DOWN arrows to adjust\nPress ENTER to start\nPress ESC or CTRL-C to exit", m.selectedDuration)
+		var s strings.Builder
+
+		// Title
+		s.WriteString(DefaultTheme.Title.Render("⚙️  Session Configuration"))
+		s.WriteString("\n\n")
+
+		// Duration selector in a box
+		durationText := fmt.Sprintf("%d minute", m.selectedDuration)
+		if m.selectedDuration != 1 {
+			durationText += "s"
+		}
+
+		var configContent strings.Builder
+		configContent.WriteString(DefaultTheme.Info.Render("Session Duration:") + "\n\n")
+		configContent.WriteString(lipgloss.NewStyle().
+			Foreground(lipgloss.Color("3")).
+			Bold(true).
+			Render(fmt.Sprintf("       %s", durationText)) + "\n\n")
+		configContent.WriteString(DefaultTheme.Muted.Render("Use ↑/↓ arrows to adjust (1-60 minutes)"))
+
+		configBox := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("6")).
+			Padding(1, 2).
+			Width(45).
+			Align(lipgloss.Center).
+			Render(configContent.String())
+
+		s.WriteString(configBox)
+		s.WriteString("\n\n")
+
+		// Instructions with better styling
+		instructBox := lipgloss.NewStyle().
+			BorderStyle(lipgloss.DoubleBorder()).
+			BorderForeground(lipgloss.Color("5")).
+			Padding(0, 1).
+			Width(45).
+			Render(
+				DefaultTheme.Success.Render("▶  Press ENTER to start") + "\n" +
+					DefaultTheme.Muted.Render("   Press ESC or CTRL-C to exit"))
+
+		s.WriteString(instructBox)
+
+		return s.String()
 	}
 
 	// Wait for terminal dimensions before rendering
@@ -647,8 +893,25 @@ func (m sessionModel) View() string {
 		statsHeader += " | ⏳ Generating..."
 	}
 
-	statsHeader += "\n\n"
+	statsHeader += "\n"
 	result.WriteString(statsHeader)
+
+	// Add progress bar
+	progressPercent := float64(len(m.typedText)) / float64(len(m.text))
+	if progressPercent > 1.0 {
+		progressPercent = 1.0
+	}
+	progressBarWidth := terminalWidth - 10 // Leave margin
+	if progressBarWidth > 50 {
+		progressBarWidth = 50 // Max width
+	}
+	filledWidth := int(float64(progressBarWidth) * progressPercent)
+	emptyWidth := progressBarWidth - filledWidth
+
+	progressBar := DefaultTheme.ProgressFill.Render(strings.Repeat("█", filledWidth)) +
+		DefaultTheme.ProgressBar.Render(strings.Repeat("░", emptyWidth))
+
+	result.WriteString(fmt.Sprintf("Progress: [%s] %.0f%%\n\n", progressBar, progressPercent*100))
 
 	// Reserve space for margins
 	displayWidth := terminalWidth - 4
@@ -721,6 +984,39 @@ func (m sessionModel) View() string {
 		result.WriteString(styledChar)
 	}
 
+	// Display mistyped words in boxes
+	if len(m.currentProblemWords) > 0 {
+		result.WriteString("\n\n")
+		result.WriteString(DefaultTheme.Warning.Render("Mistyped words:"))
+		result.WriteString("\n")
+
+		// Create boxes for each mistyped word
+		boxStyle := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("1")). // Red border
+			Padding(0, 1).
+			MarginRight(1)
+
+		// Render boxes in a row, wrapping if needed
+		currentLineWidth := 0
+		for _, word := range m.currentProblemWords {
+			// Calculate box width (word length + padding + borders)
+			boxWidth := len(word) + 4
+
+			// Check if we need to wrap to next line
+			if currentLineWidth > 0 && currentLineWidth+boxWidth > terminalWidth-4 {
+				result.WriteString("\n")
+				currentLineWidth = 0
+			}
+
+			// Render the box
+			box := boxStyle.Render(word)
+			result.WriteString(box)
+			currentLineWidth += boxWidth
+		}
+		result.WriteString("\n")
+	}
+
 	result.WriteString("\n\nPress ESC or CTRL-C to exit")
 
 	return result.String()
@@ -752,6 +1048,8 @@ func startSession(config types.Config, text string, textSource sources.TextSourc
 		lastSentence:          text, // First sentence becomes context
 		errorPatterns:         make(map[rune]int),
 		problemWords:          make([]string, 0),
+		currentProblemWords:   make([]string, 0), // Initialize mistyped words display
+		lastWordEnd:           0,                  // Track word completion
 		generationPending:     false,
 		nextSentenceReady:     false,
 		nextSentenceBuffer:    "",
