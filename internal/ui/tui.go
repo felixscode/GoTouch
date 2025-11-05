@@ -194,6 +194,7 @@ func (m welcomeModel) View() string {
 			BorderForeground(lipgloss.Color("8")).
 			Padding(0, 1).
 			Align(lipgloss.Center).
+			Width(60).
 			Render(fmt.Sprintf(
 				"%s WPM: %.0f | %s WPM: %.0f | %s: %.1f%% | %s: %d",
 				DefaultTheme.Info.Render("Avg"),
@@ -219,7 +220,8 @@ func (m welcomeModel) View() string {
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("8")).
 		Padding(1, 2).
-		Align(lipgloss.Center)
+		Align(lipgloss.Center).
+		Width(60)
 
 	var menu strings.Builder
 	for i, choice := range m.choices {
