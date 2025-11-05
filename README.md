@@ -10,6 +10,17 @@ A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive
 
 ![gif](./gotouch.gif)
 
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [LLM Setup](#llm-setup-optional-but-recommended)
+- [Configuration](#configuration)
+- [Keyboard Controls](#keyboard-controls)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+
 ## Features
 
 - **AI-Powered Adaptive Learning**: Uses LLMs to generate typing exercises that adapt to your mistakes
@@ -17,12 +28,72 @@ A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive
 - **Real-time Statistics**: Track WPM, accuracy, and errors as you type
 - **Session History**: Automatic saving with historical statistics
 
+## Installation
+
+### Pre-built Binaries (Recommended)
+
+Download the latest pre-built binary for your platform from [GitHub Releases](https://github.com/felixscode/GoTouch/releases):
+
+**Linux (x86_64):**
+```bash
+# Download the latest release
+curl -LO https://github.com/felixscode/GoTouch/releases/latest/download/gotouch-linux-amd64
+
+# Make it executable
+chmod +x gotouch-linux-amd64
+
+# Move to your PATH (optional)
+sudo mv gotouch-linux-amd64 /usr/local/bin/gotouch
+```
+
+**Linux (ARM64):**
+```bash
+curl -LO https://github.com/felixscode/GoTouch/releases/latest/download/gotouch-linux-arm64
+chmod +x gotouch-linux-arm64
+sudo mv gotouch-linux-arm64 /usr/local/bin/gotouch
+```
+
+**macOS (Intel):**
+```bash
+curl -LO https://github.com/felixscode/GoTouch/releases/latest/download/gotouch-darwin-amd64
+chmod +x gotouch-darwin-amd64
+sudo mv gotouch-darwin-amd64 /usr/local/bin/gotouch
+```
+
+**macOS (Apple Silicon):**
+```bash
+curl -LO https://github.com/felixscode/GoTouch/releases/latest/download/gotouch-darwin-arm64
+chmod +x gotouch-darwin-arm64
+sudo mv gotouch-darwin-arm64 /usr/local/bin/gotouch
+```
+
+**Windows:**
+```powershell
+# Download gotouch-windows-amd64.exe from releases and add to your PATH
+```
+
+### Building from Source
+
+If you prefer to build from source:
+
+```bash
+# Clone the repository
+git clone https://github.com/felixscode/GoTouch.git
+cd GoTouch
+
+# Build
+go build -o gotouch
+
+# Run
+./gotouch
+```
+
+**Requirements:**
+- Go 1.21 or later
+
 ## Quick Start
 
 ```bash
-# Download from releases or build from source
-go build -o gotouch
-
 # Run (works with dummy text out of the box)
 gotouch
 ```
@@ -30,8 +101,6 @@ gotouch
 Use arrow keys to set duration, Enter to start, type the text. Stats appear at the end.
 
 ## LLM Setup (Optional but Recommended)
-
-
 
 ### Anthropic Claude (Recommended)
 
@@ -98,17 +167,6 @@ See [config.example.yaml](config.example.yaml) for all options.
 **Before Session:** ↑/↓ adjust duration, Enter to start
 **During Session:** Type naturally, Backspace to correct, Esc to quit
 **After Session:** Enter to exit
-
-## Installation
-
-**Pre-built binaries:** Download from [GitHub Releases](https://github.com/felixscode/GoTouch/releases)
-
-**From source:**
-```bash
-git clone https://github.com/felixscode/GoTouch.git
-cd GoTouch
-go build -o gotouch
-```
 
 ## Development
 
