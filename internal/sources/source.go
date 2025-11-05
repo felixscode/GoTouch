@@ -14,7 +14,7 @@ func NewTextSource(sourceType string, config types.TextConfig) (TextSource, erro
 	case "dummy", "Dummy", "dummy_source", "DummySource":
 		return &DummySource{}, nil
 	case "llm", "LLM", "llm_source", "LLMSource":
-		llmSource, err := NewLLMSource(config.LLM.Model, config.LLM.TimeoutSeconds)
+		llmSource, err := NewLLMSource(config.LLM)
 		if err != nil {
 			if config.LLM.FallbackToDummy {
 				fmt.Printf("Warning: Failed to initialize LLM source (%v), falling back to dummy\n", err)

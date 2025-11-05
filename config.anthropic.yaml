@@ -1,0 +1,21 @@
+# GoTouch Configuration - Anthropic Claude
+# For use with Anthropic's Claude models
+# Set GOTOUCH_LLM_API_KEY environment variable or create ~/.config/gotouch/api-key file
+
+text:
+  source: llm
+  llm:
+    provider: anthropic
+    model: claude-3-5-haiku-latest  # Fast, cost-effective
+    # model: claude-3-5-sonnet-latest  # More creative, higher quality
+    api_base: ""  # Leave empty for default Anthropic endpoint
+    pregenerate_threshold: 20
+    fallback_to_dummy: true
+    timeout_seconds: 5
+    max_retries: 1
+
+ui:
+  theme: default
+
+stats:
+  file_dir: ~/.local/share/gotouch/user_stats.json

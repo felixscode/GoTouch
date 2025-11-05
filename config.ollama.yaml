@@ -1,0 +1,21 @@
+# GoTouch Configuration - Ollama (Local LLM)
+# For use with locally-run Ollama models
+# No API key required! Install Ollama and pull a model first:
+# ollama pull llama2
+
+text:
+  source: llm
+  llm:
+    provider: ollama
+    model: llama2  # or mistral, codellama, or any model you've pulled
+    api_base: http://localhost:11434  # Default Ollama endpoint
+    pregenerate_threshold: 20
+    fallback_to_dummy: true
+    timeout_seconds: 10  # Local models may need more time
+    max_retries: 1
+
+ui:
+  theme: default
+
+stats:
+  file_dir: ~/.local/share/gotouch/user_stats.json

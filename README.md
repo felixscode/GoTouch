@@ -6,18 +6,27 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Report Card](https://goreportcard.com/badge/github.com/felixscode/GoTouch)](https://goreportcard.com/report/github.com/felixscode/GoTouch)
 
-
-
 A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive learning.
 
 ![gif](./gotouch.gif)
 
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [LLM Setup](#llm-setup-optional-but-recommended)
+- [Configuration](#configuration)
+- [Keyboard Controls](#keyboard-controls)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+
 ## Features
 
-- **AI-Powered Adaptive Learning**: Uses Claude AI to generate contextual typing exercises that adapt to your mistakes
-- **Real-time Statistics**: Track your WPM, accuracy, and errors as you type
-- **Session History**: Automatic saving of typing sessions with historical statistics
-- **Pure Go**: 100% written in go.
+- **AI-Powered Adaptive Learning**: Uses LLMs to generate typing exercises that adapt to your mistakes
+- **Multi-Provider Support**: Anthropic Claude, OpenAI GPT, or local Ollama models
+- **Real-time Statistics**: Track WPM, accuracy, and errors as you type
+- **Session History**: Automatic saving with historical statistics
 
 ## Installation
 
@@ -84,247 +93,109 @@ go build -o gotouch
 
 ## Quick Start
 
-> llm mode is recommended [LLM Mode Setup](#llm-mode-setup-optional) make suer to set it up beforehand
-
-1. **Run GoTouch:**
-   ```bash
-   gotouch
-   ```
-
-2. **Configure session duration** using up/down arrows
-
-3. **Press Enter** to start typing
-
-4. **Type the displayed text** - correct characters show in green, errors in red
-
-5. **View your stats** at the end of the session
-
-## Configuration
-
-GoTouch automatically manages configuration files in platform-specific directories:
-
-**Linux/macOS:**
-- Config: `~/.config/gotouch/config.yaml`
-- Stats: `~/.local/share/gotouch/user_stats.json`
-- API Key (optional): `~/.config/gotouch/api-key`
-
-**Windows:**
-- Config: `%APPDATA%\gotouch\config.yaml`
-- Stats: `%LOCALAPPDATA%\gotouch\user_stats.json`
-- API Key (optional): `%APPDATA%\gotouch\api-key`
-
-On first run, GoTouch will automatically create a default configuration file if none exists.
-
-### Basic Configuration
-
-The default `config.yaml` looks like this:
-
-```yaml
-text:
-  source: dummy  # Options: "dummy" or "llm"
-  llm:
-    model: "haiku"  # Options: "sonnet" or "haiku"
-    pregenerate_threshold: 20
-    fallback_to_dummy: true
-    timeout_seconds: 5
-    max_retries: 1
-ui:
-  theme: "default"  # Options: "default" or "dark"
-stats:
-  file_dir: "~/.local/share/gotouch/user_stats.json"  # Auto-configured
+```bash
+# Run (works with dummy text out of the box)
+gotouch
 ```
 
-You can edit this file directly with your preferred text editor, or use a custom config file location with the `--config` flag.
+Use arrow keys to set duration, Enter to start, type the text. Stats appear at the end.
 
-### LLM Mode Setup (Recommendet)
+## LLM Setup (Optional but Recommended)
 
-For AI-powered adaptive typing practice:
+### Anthropic Claude (Recommended)
 
-1. **Get an Anthropic API Key:**
-   - Sign up at [https://console.anthropic.com](https://console.anthropic.com)
-   - Generate an API key
-
-2. **Configure the API key** (choose one method):
-
-   **Method 1: Environment Variable**
+1. Get API key from [console.anthropic.com](https://console.anthropic.com)
+2. Set environment variable:
    ```bash
-   export ANTHROPIC_API_KEY="your-api-key-here"
+   export GOTOUCH_LLM_API_KEY="your-key"
    ```
-
-   **Method 2: API Key File (Recommended)**
-   ```bash
-   # Linux/macOS
-   echo "your-api-key-here" > ~/.config/gotouch/api-key
-
-   # Windows (PowerShell)
-   echo "your-api-key-here" > $env:APPDATA\gotouch\api-key
-   ```
-
-3. **Update config.yaml:**
-   ```bash
-   # Linux/macOS
-   nano ~/.config/gotouch/config.yaml
-
-   # Windows
-   notepad %APPDATA%\gotouch\config.yaml
-   ```
-
-   Change `source: dummy` to `source: llm`:
+3. Update `~/.config/gotouch/config.yaml`:
    ```yaml
    text:
      source: llm
      llm:
-       model: "haiku"  # Fast and cost-effective
-       # model: "sonnet"  # More creative, higher quality
+       provider: "anthropic"
+       model: "claude-3-5-haiku-latest"
    ```
 
-4. **Run GoTouch** - it will now generate adaptive content based on your typing patterns!
-
-### How LLM Mode Works
-
-- Generates contextual, interesting sentences for typing practice
-- Analyzes your typing errors in real-time
-- Pre-generates next sentences that focus on characters and words you struggle with
-- Maintains topic continuity for a natural reading/typing experience
-- Shows generated text immediately as it becomes available
-
-## Usage
+### OpenAI GPT
 
 ```bash
-# Start with default configuration
-gotouch
-
-# Use specific config file
-gotouch --config /path/to/config.yaml
+export GOTOUCH_LLM_API_KEY="your-openai-key"
 ```
 
-### Keyboard Controls
-
-**Before Session:**
-- `↑/↓` - Adjust session duration (1-60 minutes)
-- `Enter` - Start the typing session
-- `Esc/Ctrl+C` - Exit
-
-**During Session:**
-- Type naturally - the cursor moves as you type
-- `Backspace` - Correct mistakes
-- `Esc/Ctrl+C` - Quit session early
-
-**After Session:**
-- `Enter` - Exit and save stats
-
-## Project Structure
-
+Config:
+```yaml
+text:
+  source: llm
+  llm:
+    provider: "openai"
+    model: "gpt-4"  # or "gpt-3.5-turbo"
 ```
-GoTouch/
-├── main.go                 # Entry point with CLI flag parsing
-├── internal/
-│   ├── config/           # Configuration management
-│   │   ├── paths.go      # Platform-specific path resolution
-│   │   └── default.go    # Default config generation
-│   ├── sources/          # Text source implementations
-│   │   ├── source.go     # Text source interface
-│   │   ├── llm.go        # Claude AI integration
-│   │   ├── llm_test.go   # LLM tests
-│   │   └── dummy.go      # Dummy text source
-│   ├── types/            # Type definitions
-│   │   ├── config.go     # Configuration types
-│   │   └── stats.go      # Statistics types
-│   └── ui/               # Terminal UI
-│       ├── tui.go        # Bubbletea application
-│       └── styles.go     # Color themes
-└── README.md
 
-User Data (auto-created):
-  ~/.config/gotouch/config.yaml      # Configuration (Linux/macOS)
-  ~/.local/share/gotouch/user_stats.json  # Session history
-  ~/.config/gotouch/api-key          # Optional API key file
+### Ollama (Local)
+
+```bash
+ollama pull llama2
 ```
+
+Config:
+```yaml
+text:
+  source: llm
+  llm:
+    provider: "ollama"
+    model: "llama2"
+    api_base: "http://localhost:11434"
+```
+
+## Configuration
+
+**Default config location:**
+- Linux/macOS: `~/.config/gotouch/config.yaml`
+- Windows: `%APPDATA%\gotouch\config.yaml`
+
+**Example configs available:**
+- `config.anthropic.yaml`
+- `config.openai.yaml`
+- `config.ollama.yaml`
+
+See [config.example.yaml](config.example.yaml) for all options.
+
+## Keyboard Controls
+
+**Before Session:** ↑/↓ adjust duration, Enter to start
+**During Session:** Type naturally, Backspace to correct, Esc to quit
+**After Session:** Enter to exit
 
 ## Development
 
-### Running Tests
-
 ```bash
-# Run all tests
+# Run tests
 go test ./...
 
-# Run tests with coverage
-go test -cover ./...
-
-# Run LLM integration tests (requires API key)
-export ANTHROPIC_API_KEY="your-key"
+# With API key for integration tests
+export GOTOUCH_LLM_API_KEY="your-key"
 go test -v ./internal/sources
 
-# Run specific test
-go test -v ./internal/sources -run TestGetText_Integration
-```
-
-### Building
-
-```bash
-# Build for current platform
-go build -o gotouch
-
-# Build for all platforms (like GitHub releases does)
+# Build for multiple platforms
 GOOS=linux GOARCH=amd64 go build -o gotouch-linux-amd64
-GOOS=darwin GOARCH=amd64 go build -o gotouch-darwin-amd64
 GOOS=darwin GOARCH=arm64 go build -o gotouch-darwin-arm64
 GOOS=windows GOARCH=amd64 go build -o gotouch-windows-amd64.exe
 ```
 
-### Dependencies
+## Troubleshooting
 
-- [github.com/anthropics/anthropic-sdk-go](https://github.com/anthropics/anthropic-sdk-go) - Claude AI SDK
-- [github.com/charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea) - Terminal UI framework
-- [github.com/charmbracelet/lipgloss](https://github.com/charmbracelet/lipgloss) - Terminal styling
-- [gopkg.in/yaml.v3](https://gopkg.in/yaml.v3) - YAML configuration
+**"GOTOUCH_LLM_API_KEY not set"**: Set the environment variable or add key to `~/.config/gotouch/api-key`
 
-## Statistics
+**LLM falls back to dummy**: Check `fallback_to_dummy: true` in config. Set to `false` for detailed errors.
 
-All typing sessions are automatically saved to `user_stats.json`. The dashboard shows:
+**Ollama issues**: Ensure Ollama is running (`ollama serve`). Pull model first: `ollama pull llama2`
 
-- **Current Session**: WPM, Accuracy, Errors, Duration
-- **Historical Stats**: Average WPM, Best WPM, Average Accuracy, Total Sessions
-
-## Themes
-
-GoTouch supports terminal themes that respect your terminal's color scheme:
-
-- **Default Theme**: Standard terminal colors
-- **Dark Theme**: Bright variants for better visibility on dark backgrounds
-
-Configure in `config.yaml`:
-```yaml
-ui:
-  theme: "default"  # or "dark"
-```
+**Switch providers**: Copy example configs or edit `config.yaml` to change `provider` field
 
 ## License
 
 MIT License - see LICENSE file for details
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Troubleshooting
-
-### "ANTHROPIC_API_KEY environment variable not set"
-
-Make sure you've set up your API key using one of the methods in [LLM Mode Setup](#llm-mode-setup-optional).
-
-### LLM mode falls back to dummy text
-
-Check your `config.yaml` - if `fallback_to_dummy: true`, the app will use dummy text when LLM fails. Set to `false` to see detailed error messages.
-
-### Colors don't match my terminal theme
-
-Make sure you're using one of the built-in themes. The app automatically uses your terminal's color palette.
-
-### Session stats not saving
-
-The app automatically creates the data directory (`~/.local/share/gotouch` on Linux/macOS). If you're seeing permission errors, check that your user has write access to this directory.
-
-
-**Happy Typing!** 🚀
+**Happy Typing!**

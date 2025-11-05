@@ -1,6 +1,7 @@
 package sources
 
 import (
+	"go-touch/internal/types"
 	"os"
 	"testing"
 	"time"
@@ -9,13 +10,13 @@ import (
 // TestNewLLMSource_APIKeyFromFile tests loading API key from file
 func TestNewLLMSource_APIKeyFromFile(t *testing.T) {
 	// Remove env var
-	originalKey := os.Getenv("ANTHROPIC_API_KEY")
+	originalKey := os.Getenv("GOTOUCH_LLM_API_KEY")
 	defer func() {
 		if originalKey != "" {
-			os.Setenv("ANTHROPIC_API_KEY", originalKey)
+			os.Setenv("GOTOUCH_LLM_API_KEY", originalKey)
 		}
 	}()
-	os.Unsetenv("ANTHROPIC_API_KEY")
+	os.Unsetenv("GOTOUCH_LLM_API_KEY")
 
 	// Create api-key file
 	apiKeyContent := "test-key-from-file-123"
@@ -25,7 +26,13 @@ func TestNewLLMSource_APIKeyFromFile(t *testing.T) {
 	}
 	defer os.Remove("api-key")
 
-	source, err := NewLLMSource("haiku", 5)
+	config := types.LLMConfig{
+		Provider:       "anthropic",
+		Model:          "claude-3-5-haiku-latest",
+		TimeoutSeconds: 5,
+	}
+
+	source, err := NewLLMSource(config)
 
 	if err != nil {
 		t.Errorf("NewLLMSource() unexpected error: %v", err)
@@ -34,47 +41,82 @@ func TestNewLLMSource_APIKeyFromFile(t *testing.T) {
 	if source == nil {
 		t.Errorf("NewLLMSource() returned nil source")
 	}
-
-	if source.model != "claude-3-5-haiku-latest" {
-		t.Errorf("NewLLMSource() model = %v, want claude-3-5-haiku-latest", source.model)
-	}
 }
 
-func TestNewLLMSource_ModelSelection(t *testing.T) {
-	originalKey := os.Getenv("ANTHROPIC_API_KEY")
-	defer os.Setenv("ANTHROPIC_API_KEY", originalKey)
-	os.Setenv("ANTHROPIC_API_KEY", "test-key")
+func TestNewLLMSource_Providers(t *testing.T) {
+	originalKey := os.Getenv("GOTOUCH_LLM_API_KEY")
+	defer func() {
+		if originalKey != "" {
+			os.Setenv("GOTOUCH_LLM_API_KEY", originalKey)
+		} else {
+			os.Unsetenv("GOTOUCH_LLM_API_KEY")
+		}
+	}()
+	os.Setenv("GOTOUCH_LLM_API_KEY", "test-key")
 
 	tests := []struct {
-		name          string
-		modelName     string
-		expectedModel string
+		name     string
+		config   types.LLMConfig
+		wantErr  bool
+		errMsg   string
 	}{
 		{
-			name:          "haiku model",
-			modelName:     "haiku",
-			expectedModel: "claude-3-5-haiku-latest",
+			name: "anthropic provider",
+			config: types.LLMConfig{
+				Provider:       "anthropic",
+				Model:          "claude-3-5-haiku-latest",
+				TimeoutSeconds: 5,
+			},
+			wantErr: false,
 		},
 		{
-			name:          "sonnet model",
-			modelName:     "sonnet",
-			expectedModel: "claude-3-5-sonnet-latest",
+			name: "openai provider",
+			config: types.LLMConfig{
+				Provider:       "openai",
+				Model:          "gpt-4",
+				TimeoutSeconds: 5,
+			},
+			wantErr: false,
 		},
 		{
-			name:          "empty defaults to haiku",
-			modelName:     "",
-			expectedModel: "claude-3-5-haiku-latest",
+			name: "ollama provider without api key",
+			config: types.LLMConfig{
+				Provider:       "ollama",
+				Model:          "llama2",
+				APIBase:        "http://localhost:11434",
+				TimeoutSeconds: 5,
+			},
+			wantErr: false,
 		},
 		{
-			name:          "unknown defaults to haiku",
-			modelName:     "unknown",
-			expectedModel: "claude-3-5-haiku-latest",
+			name: "unsupported provider",
+			config: types.LLMConfig{
+				Provider:       "unsupported",
+				Model:          "some-model",
+				TimeoutSeconds: 5,
+			},
+			wantErr: true,
+			errMsg:  "unsupported provider",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			source, err := NewLLMSource(tt.modelName, 5)
+			// For ollama, don't require API key
+			if tt.config.Provider == "ollama" {
+				os.Unsetenv("GOTOUCH_LLM_API_KEY")
+			} else {
+				os.Setenv("GOTOUCH_LLM_API_KEY", "test-key")
+			}
+
+			source, err := NewLLMSource(tt.config)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("NewLLMSource() expected error, got nil")
+				}
+				return
+			}
 
 			if err != nil {
 				t.Errorf("NewLLMSource() unexpected error: %v", err)
@@ -84,17 +126,24 @@ func TestNewLLMSource_ModelSelection(t *testing.T) {
 				t.Fatalf("NewLLMSource() returned nil")
 			}
 
-			if string(source.model) != tt.expectedModel {
-				t.Errorf("NewLLMSource() model = %v, want %v", source.model, tt.expectedModel)
+			expectedTimeout := time.Duration(tt.config.TimeoutSeconds) * time.Second
+			if source.timeout != expectedTimeout {
+				t.Errorf("NewLLMSource() timeout = %v, want %v", source.timeout, expectedTimeout)
 			}
 		})
 	}
 }
 
 func TestNewLLMSource_TimeoutConfiguration(t *testing.T) {
-	originalKey := os.Getenv("ANTHROPIC_API_KEY")
-	defer os.Setenv("ANTHROPIC_API_KEY", originalKey)
-	os.Setenv("ANTHROPIC_API_KEY", "test-key")
+	originalKey := os.Getenv("GOTOUCH_LLM_API_KEY")
+	defer func() {
+		if originalKey != "" {
+			os.Setenv("GOTOUCH_LLM_API_KEY", originalKey)
+		} else {
+			os.Unsetenv("GOTOUCH_LLM_API_KEY")
+		}
+	}()
+	os.Setenv("GOTOUCH_LLM_API_KEY", "test-key")
 
 	tests := []struct {
 		name            string
@@ -120,7 +169,13 @@ func TestNewLLMSource_TimeoutConfiguration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			source, err := NewLLMSource("haiku", tt.timeoutSeconds)
+			config := types.LLMConfig{
+				Provider:       "anthropic",
+				Model:          "claude-3-5-haiku-latest",
+				TimeoutSeconds: tt.timeoutSeconds,
+			}
+
+			source, err := NewLLMSource(config)
 
 			if err != nil {
 				t.Errorf("NewLLMSource() unexpected error: %v", err)
@@ -137,51 +192,76 @@ func TestNewLLMSource_TimeoutConfiguration(t *testing.T) {
 func TestNewLLMSource(t *testing.T) {
 	tests := []struct {
 		name            string
-		modelName       string
-		timeoutSeconds  int
+		config          types.LLMConfig
 		envVarSet       bool
 		wantErr         bool
 		expectedTimeout time.Duration
 	}{
 		{
-			name:            "default model with API key",
-			modelName:       "",
-			timeoutSeconds:  5,
+			name: "anthropic with API key",
+			config: types.LLMConfig{
+				Provider:       "anthropic",
+				Model:          "claude-3-5-haiku-latest",
+				TimeoutSeconds: 5,
+			},
 			envVarSet:       true,
 			wantErr:         false,
 			expectedTimeout: 5 * time.Second,
 		},
 		{
-			name:            "custom model with API key",
-			modelName:       "sonnet",
-			timeoutSeconds:  10,
+			name: "openai with API key",
+			config: types.LLMConfig{
+				Provider:       "openai",
+				Model:          "gpt-4",
+				TimeoutSeconds: 10,
+			},
 			envVarSet:       true,
 			wantErr:         false,
 			expectedTimeout: 10 * time.Second,
 		},
 		{
-			name:           "no API key",
-			modelName:      "",
-			timeoutSeconds: 5,
-			envVarSet:      false,
-			wantErr:        true,
+			name: "no API key for anthropic",
+			config: types.LLMConfig{
+				Provider:       "anthropic",
+				Model:          "claude-3-5-haiku-latest",
+				TimeoutSeconds: 5,
+			},
+			envVarSet: false,
+			wantErr:   true,
+		},
+		{
+			name: "ollama without API key",
+			config: types.LLMConfig{
+				Provider:       "ollama",
+				Model:          "llama2",
+				TimeoutSeconds: 5,
+			},
+			envVarSet:       false,
+			wantErr:         false,
+			expectedTimeout: 5 * time.Second,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup environment
-			originalKey := os.Getenv("ANTHROPIC_API_KEY")
-			defer os.Setenv("ANTHROPIC_API_KEY", originalKey)
+			originalKey := os.Getenv("GOTOUCH_LLM_API_KEY")
+			defer func() {
+				if originalKey != "" {
+					os.Setenv("GOTOUCH_LLM_API_KEY", originalKey)
+				} else {
+					os.Unsetenv("GOTOUCH_LLM_API_KEY")
+				}
+			}()
 
 			if tt.envVarSet {
-				os.Setenv("ANTHROPIC_API_KEY", "test-key-123")
+				os.Setenv("GOTOUCH_LLM_API_KEY", "test-key-123")
 			} else {
-				os.Unsetenv("ANTHROPIC_API_KEY")
+				os.Unsetenv("GOTOUCH_LLM_API_KEY")
 			}
 
 			// Test
-			source, err := NewLLMSource(tt.modelName, tt.timeoutSeconds)
+			source, err := NewLLMSource(tt.config)
 
 			// Verify
 			if tt.wantErr {
@@ -204,14 +284,6 @@ func TestNewLLMSource(t *testing.T) {
 			if source.timeout != tt.expectedTimeout {
 				t.Errorf("NewLLMSource() timeout = %v, want %v", source.timeout, tt.expectedTimeout)
 			}
-
-			// Verify model
-			if tt.modelName != "" {
-				if source.model != "claude-3-5-sonnet-latest" {
-					t.Errorf("NewLLMSource() model = %v, want %v", source.model, "claude-3-5-sonnet-latest")
-				}
-			}
-
 		})
 	}
 }
@@ -219,15 +291,21 @@ func TestNewLLMSource(t *testing.T) {
 // TestGetText_Integration is an integration test that calls the real API
 // Skip by default, run with: go test -run TestGetText_Integration
 func TestGetText_Integration(t *testing.T) {
-	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		t.Skip("Skipping integration test: ANTHROPIC_API_KEY not set")
+	if os.Getenv("GOTOUCH_LLM_API_KEY") == "" {
+		t.Skip("Skipping integration test: GOTOUCH_LLM_API_KEY not set")
 	}
 
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	source, err := NewLLMSource("claude-3-opus-20240229", 30)
+	config := types.LLMConfig{
+		Provider:       "anthropic",
+		Model:          "claude-3-5-haiku-latest",
+		TimeoutSeconds: 30,
+	}
+
+	source, err := NewLLMSource(config)
 	if err != nil {
 		t.Fatalf("Failed to create LLM source: %v", err)
 	}
@@ -255,15 +333,21 @@ func TestGetText_Integration(t *testing.T) {
 
 // TestGetNextSentence_Integration is an integration test
 func TestGetNextSentence_Integration(t *testing.T) {
-	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		t.Skip("Skipping integration test: ANTHROPIC_API_KEY not set")
+	if os.Getenv("GOTOUCH_LLM_API_KEY") == "" {
+		t.Skip("Skipping integration test: GOTOUCH_LLM_API_KEY not set")
 	}
 
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	source, err := NewLLMSource("claude-3-opus-20240229", 30)
+	config := types.LLMConfig{
+		Provider:       "anthropic",
+		Model:          "claude-3-5-haiku-latest",
+		TimeoutSeconds: 30,
+	}
+
+	source, err := NewLLMSource(config)
 	if err != nil {
 		t.Fatalf("Failed to create LLM source: %v", err)
 	}
@@ -328,16 +412,22 @@ func TestGetNextSentence_Integration(t *testing.T) {
 
 // TestGetText_Timeout tests timeout behavior
 func TestGetText_Timeout(t *testing.T) {
-	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		t.Skip("Skipping test: ANTHROPIC_API_KEY not set")
+	if os.Getenv("GOTOUCH_LLM_API_KEY") == "" {
+		t.Skip("Skipping test: GOTOUCH_LLM_API_KEY not set")
 	}
 
 	if testing.Short() {
 		t.Skip("Skipping timeout test in short mode")
 	}
 
+	config := types.LLMConfig{
+		Provider:       "anthropic",
+		Model:          "claude-3-5-haiku-latest",
+		TimeoutSeconds: 0, // 0 second timeout
+	}
+
 	// Use a very short timeout to trigger timeout error
-	source, err := NewLLMSource("claude-3-opus-20240229", 0) // 0 second timeout
+	source, err := NewLLMSource(config)
 	if err != nil {
 		t.Fatalf("Failed to create LLM source: %v", err)
 	}
@@ -351,15 +441,21 @@ func TestGetText_Timeout(t *testing.T) {
 
 // TestGetNextSentence_EmptyPrevious tests edge case
 func TestGetNextSentence_EmptyPrevious(t *testing.T) {
-	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		t.Skip("Skipping integration test: ANTHROPIC_API_KEY not set")
+	if os.Getenv("GOTOUCH_LLM_API_KEY") == "" {
+		t.Skip("Skipping integration test: GOTOUCH_LLM_API_KEY not set")
 	}
 
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	source, err := NewLLMSource("claude-3-opus-20240229", 30)
+	config := types.LLMConfig{
+		Provider:       "anthropic",
+		Model:          "claude-3-5-haiku-latest",
+		TimeoutSeconds: 30,
+	}
+
+	source, err := NewLLMSource(config)
 	if err != nil {
 		t.Fatalf("Failed to create LLM source: %v", err)
 	}
@@ -379,11 +475,17 @@ func TestGetNextSentence_EmptyPrevious(t *testing.T) {
 
 // Benchmark tests
 func BenchmarkGetText(b *testing.B) {
-	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		b.Skip("Skipping benchmark: ANTHROPIC_API_KEY not set")
+	if os.Getenv("GOTOUCH_LLM_API_KEY") == "" {
+		b.Skip("Skipping benchmark: GOTOUCH_LLM_API_KEY not set")
 	}
 
-	source, err := NewLLMSource("claude-3-opus-20240229", 30)
+	config := types.LLMConfig{
+		Provider:       "anthropic",
+		Model:          "claude-3-5-haiku-latest",
+		TimeoutSeconds: 30,
+	}
+
+	source, err := NewLLMSource(config)
 	if err != nil {
 		b.Fatalf("Failed to create LLM source: %v", err)
 	}
@@ -398,11 +500,17 @@ func BenchmarkGetText(b *testing.B) {
 }
 
 func BenchmarkGetNextSentence(b *testing.B) {
-	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		b.Skip("Skipping benchmark: ANTHROPIC_API_KEY not set")
+	if os.Getenv("GOTOUCH_LLM_API_KEY") == "" {
+		b.Skip("Skipping benchmark: GOTOUCH_LLM_API_KEY not set")
 	}
 
-	source, err := NewLLMSource("claude-3-opus-20240229", 30)
+	config := types.LLMConfig{
+		Provider:       "anthropic",
+		Model:          "claude-3-5-haiku-latest",
+		TimeoutSeconds: 30,
+	}
+
+	source, err := NewLLMSource(config)
 	if err != nil {
 		b.Fatalf("Failed to create LLM source: %v", err)
 	}

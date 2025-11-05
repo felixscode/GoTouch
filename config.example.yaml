@@ -1,0 +1,42 @@
+# GoTouch Example Configuration
+# Copy this to ~/.config/gotouch/config.yaml (Linux/macOS) or %APPDATA%\gotouch\config.yaml (Windows)
+
+text:
+  # Text source: "dummy" for static text or "llm" for AI-generated content
+  source: dummy
+
+  llm:
+    # LLM Provider Configuration
+    # Choose one: "anthropic", "openai", or "ollama"
+    provider: anthropic
+
+    # Model name (provider-specific)
+    # Anthropic: claude-3-5-haiku-latest, claude-3-5-sonnet-latest
+    # OpenAI: gpt-4, gpt-3.5-turbo, gpt-4-turbo
+    # Ollama: llama2, mistral, codellama, etc.
+    model: claude-3-5-haiku-latest
+
+    # Optional: Custom API endpoint
+    # Use for Ollama (http://localhost:11434) or Azure OpenAI
+    api_base: ""
+
+    # Pre-generate next sentence when remaining characters fall below this threshold
+    pregenerate_threshold: 20
+
+    # Fallback to dummy text if LLM initialization or generation fails
+    fallback_to_dummy: true
+
+    # Request timeout in seconds
+    timeout_seconds: 5
+
+    # Maximum number of retries for failed LLM requests
+    max_retries: 1
+
+ui:
+  # Theme: "default" or "dark"
+  theme: default
+
+stats:
+  # Path to save typing session statistics
+  # Auto-configured based on platform
+  file_dir: ~/.local/share/gotouch/user_stats.json

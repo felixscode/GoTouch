@@ -19,7 +19,9 @@ func DefaultConfig() types.Config {
 		Text: types.TextConfig{
 			Source: "dummy",
 			LLM: types.LLMConfig{
-				Model:                "haiku",
+				Provider:             "anthropic",
+				Model:                "claude-3-5-haiku-latest",
+				APIBase:              "",
 				PregenerateThreshold: 20,
 				FallbackToDummy:      true,
 				TimeoutSeconds:       5,

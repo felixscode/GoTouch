@@ -22,7 +22,9 @@ type TextConfig struct {
 }
 
 type LLMConfig struct {
-	Model                 string `yaml:"model"`
+	Provider              string `yaml:"provider"`               // Provider: anthropic, openai, ollama
+	Model                 string `yaml:"model"`                  // Model name (e.g., claude-3-5-haiku-latest, gpt-4, llama2)
+	APIBase               string `yaml:"api_base,omitempty"`     // Optional: Custom API endpoint (e.g., for Ollama: http://localhost:11434)
 	PregenerateThreshold  int    `yaml:"pregenerate_threshold"`
 	FallbackToDummy       bool   `yaml:"fallback_to_dummy"`
 	TimeoutSeconds        int    `yaml:"timeout_seconds"`
