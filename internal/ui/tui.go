@@ -201,13 +201,13 @@ func (m welcomeModel) View() string {
 		avgWPM, bestWPM, avgAccuracy := calculateHistoricalStats(m.stats)
 		statsBox := lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("6")).
+			BorderForeground(lipgloss.Color("8")).
 			Padding(0, 1).
 			Render(fmt.Sprintf(
 				"%s WPM: %.0f | %s WPM: %.0f | %s: %.1f%% | %s: %d",
 				DefaultTheme.Info.Render("Avg"),
 				avgWPM,
-				DefaultTheme.Success.Render("Best"),
+				DefaultTheme.Highlight.Render("Best"),
 				bestWPM,
 				DefaultTheme.Info.Render("Accuracy"),
 				avgAccuracy,
@@ -221,7 +221,7 @@ func (m welcomeModel) View() string {
 	// Menu options with better styling
 	menuBox := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("5")).
+		BorderForeground(lipgloss.Color("8")).
 		Padding(1, 2).
 		Width(50)
 
@@ -345,7 +345,7 @@ func (m dashboardModel) View() string {
 	// Title box with border
 	titleStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("6")).
+		BorderForeground(lipgloss.Color("8")).
 		Padding(0, 2).
 		Align(lipgloss.Center).
 		Width(termWidth - 4)
@@ -364,25 +364,22 @@ func (m dashboardModel) View() string {
 
 	// Create individual stat boxes for current session
 	wpmBox := statBoxStyle.Copy().
-		BorderForeground(lipgloss.Color("6")).
+		BorderForeground(lipgloss.Color("6")). // Cyan for WPM highlight
 		Render(fmt.Sprintf("%s\n\n%s",
 			DefaultTheme.Muted.Render("WPM"),
 			DefaultTheme.Highlight.Render(fmt.Sprintf("%.0f", m.currentSession.WPM))))
 
 	accuracyBox := statBoxStyle.Copy().
-		BorderForeground(lipgloss.Color("2")).
 		Render(fmt.Sprintf("%s\n\n%s",
 			DefaultTheme.Muted.Render("Accuracy"),
-			DefaultTheme.Success.Render(fmt.Sprintf("%.1f%%", m.currentSession.Accuracy))))
+			fmt.Sprintf("%.1f%%", m.currentSession.Accuracy)))
 
 	errorsBox := statBoxStyle.Copy().
-		BorderForeground(lipgloss.Color("1")).
 		Render(fmt.Sprintf("%s\n\n%s",
 			DefaultTheme.Muted.Render("Errors"),
 			fmt.Sprintf("%d", m.currentSession.Errors)))
 
 	durationBox := statBoxStyle.Copy().
-		BorderForeground(lipgloss.Color("4")).
 		Render(fmt.Sprintf("%s\n\n%s",
 			DefaultTheme.Muted.Render("Duration"),
 			formatDuration(m.currentSession.Duration)))
@@ -391,11 +388,11 @@ func (m dashboardModel) View() string {
 	perfTitle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderTop(true).
-		BorderForeground(lipgloss.Color("2")).
+		BorderForeground(lipgloss.Color("8")).
 		Padding(0, 2).
 		Align(lipgloss.Center).
 		Width(termWidth - 4).
-		Render(DefaultTheme.Success.Render("Your Performance"))
+		Render(DefaultTheme.Info.Render("Your Performance"))
 
 	s.WriteString(perfTitle)
 	s.WriteString("\n\n")
@@ -433,7 +430,7 @@ func (m dashboardModel) View() string {
 		histTitle := lipgloss.NewStyle().
 			BorderStyle(lipgloss.NormalBorder()).
 			BorderTop(true).
-			BorderForeground(lipgloss.Color("4")).
+			BorderForeground(lipgloss.Color("8")).
 			Padding(0, 2).
 			Align(lipgloss.Center).
 			Width(termWidth - 4).
@@ -444,25 +441,22 @@ func (m dashboardModel) View() string {
 
 		// Create historical stat boxes
 		avgWPMBox := statBoxStyle.Copy().
-			BorderForeground(lipgloss.Color("6")).
 			Render(fmt.Sprintf("%s\n\n%s",
 				DefaultTheme.Muted.Render("Avg WPM"),
 				fmt.Sprintf("%.0f", avgWPM)))
 
 		bestWPMBox := statBoxStyle.Copy().
-			BorderForeground(lipgloss.Color("2")).
+			BorderForeground(lipgloss.Color("6")). // Cyan for best WPM highlight
 			Render(fmt.Sprintf("%s\n\n%s",
 				DefaultTheme.Muted.Render("Best WPM"),
-				DefaultTheme.Success.Render(fmt.Sprintf("%.0f", bestWPM))))
+				DefaultTheme.Highlight.Render(fmt.Sprintf("%.0f", bestWPM))))
 
 		avgAccBox := statBoxStyle.Copy().
-			BorderForeground(lipgloss.Color("5")).
 			Render(fmt.Sprintf("%s\n\n%s",
 				DefaultTheme.Muted.Render("Avg Accuracy"),
 				fmt.Sprintf("%.1f%%", avgAccuracy)))
 
 		sessionsBox := statBoxStyle.Copy().
-			BorderForeground(lipgloss.Color("4")).
 			Render(fmt.Sprintf("%s\n\n%s",
 				DefaultTheme.Muted.Render("Sessions"),
 				fmt.Sprintf("%d", len(m.allStats.Sessions))))
@@ -505,11 +499,11 @@ func (m dashboardModel) View() string {
 
 	messageBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("5")).
+		BorderForeground(lipgloss.Color("8")).
 		Padding(0, 2).
 		Align(lipgloss.Center).
 		Width(termWidth - 4).
-		Foreground(lipgloss.Color("5")).
+		Foreground(lipgloss.Color("7")).
 		Italic(true).
 		Render(message)
 
@@ -585,6 +579,7 @@ type sessionModel struct {
 	errorPatterns         map[rune]int       // Track char error frequency
 	problemWords          []string           // Words with mistakes (accumulated for LLM)
 	currentProblemWords   []string           // Words mistyped in current sentence (for display)
+	wordsWithErrors       map[int]bool       // Track word positions that had any errors
 	lastWordEnd           int                // Track last completed word position
 	generationPending     bool               // Is LLM call in progress?
 	nextSentenceReady     bool               // Next sentence generated?
@@ -670,8 +665,17 @@ func (m *sessionModel) checkForMistypedWord() {
 				if targetWordStart < targetWordEnd && targetWordEnd <= len(m.text) {
 					targetWord := m.text[targetWordStart:targetWordEnd]
 
-					// Compare the words
-					if typedWord != targetWord {
+					// Check if word had any errors during typing (even if corrected)
+					hadErrors := false
+					for i := wordStart; i < wordEnd; i++ {
+						if m.wordsWithErrors[i] {
+							hadErrors = true
+							break
+						}
+					}
+
+					// Add to problem words if it had any errors OR if final word doesn't match
+					if hadErrors || typedWord != targetWord {
 						// Word was mistyped - add to current problem words if not already there
 						alreadyAdded := false
 						for _, w := range m.currentProblemWords {
@@ -809,6 +813,8 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.typedText) <= len(m.text) {
 				if m.typedText[len(m.typedText)-1] != m.text[len(m.typedText)-1] {
 					m.errors++
+					// Mark current word position as having errors
+					m.wordsWithErrors[len(m.typedText)-1] = true
 				}
 			}
 
@@ -836,6 +842,7 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 						// Clear current problem words display for new sentence
 						m.currentProblemWords = make([]string, 0)
+						m.wordsWithErrors = make(map[int]bool) // Reset error tracking
 						m.lastWordEnd = len(m.typedText)
 
 						return m, nil
@@ -932,7 +939,7 @@ func (m sessionModel) View() string {
 
 		configBox := lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("6")).
+			BorderForeground(lipgloss.Color("8")).
 			Padding(1, 2).
 			Width(45).
 			Align(lipgloss.Center).
@@ -944,11 +951,11 @@ func (m sessionModel) View() string {
 		// Instructions with better styling
 		instructBox := lipgloss.NewStyle().
 			BorderStyle(lipgloss.DoubleBorder()).
-			BorderForeground(lipgloss.Color("5")).
+			BorderForeground(lipgloss.Color("8")).
 			Padding(0, 1).
 			Width(45).
 			Render(
-				DefaultTheme.Success.Render("Press ENTER to start") + "\n" +
+				DefaultTheme.Info.Render("Press ENTER to start") + "\n" +
 					DefaultTheme.Muted.Render("Press ESC or CTRL-C to exit"))
 
 		s.WriteString(instructBox)
@@ -991,8 +998,8 @@ func (m sessionModel) View() string {
 	statsHeader += "\n"
 	result.WriteString(statsHeader)
 
-	// Add progress bar
-	progressPercent := float64(len(m.typedText)) / float64(len(m.text))
+	// Add progress bar based on time elapsed
+	progressPercent := float64(elapsed) / float64(m.sessionDuration)
 	if progressPercent > 1.0 {
 		progressPercent = 1.0
 	}
@@ -1082,13 +1089,13 @@ func (m sessionModel) View() string {
 	// Display mistyped words in boxes
 	if len(m.currentProblemWords) > 0 {
 		result.WriteString("\n\n")
-		result.WriteString(DefaultTheme.Warning.Render("Mistyped words:"))
+		result.WriteString(DefaultTheme.Muted.Render("Mistyped words:"))
 		result.WriteString("\n")
 
 		// Create boxes for each mistyped word
 		boxStyle := lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("1")). // Red border
+			BorderForeground(lipgloss.Color("8")). // Grey border
 			Padding(0, 1).
 			MarginRight(1)
 
@@ -1144,6 +1151,7 @@ func startSession(config types.Config, text string, textSource sources.TextSourc
 		errorPatterns:         make(map[rune]int),
 		problemWords:          make([]string, 0),
 		currentProblemWords:   make([]string, 0), // Initialize mistyped words display
+		wordsWithErrors:       make(map[int]bool), // Track positions with errors
 		lastWordEnd:           0,                  // Track word completion
 		generationPending:     false,
 		nextSentenceReady:     false,

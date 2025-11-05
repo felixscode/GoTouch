@@ -25,44 +25,44 @@ var (
 	DefaultTheme = Theme{
 		Name: "Default",
 		Correct: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("2")), // Terminal green
+			Foreground(lipgloss.Color("2")), // Terminal green - keep for typed text
 		Incorrect: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("1")), // Terminal red
+			Foreground(lipgloss.Color("1")), // Terminal red - keep for typed text
 		Current: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("0")).
-			Background(lipgloss.Color("3")), // Black text on terminal yellow
+			Background(lipgloss.Color("6")), // Black text on cyan highlight
 		Normal: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("7")), // Terminal white/default
 		Background: lipgloss.NewStyle().
 			Background(lipgloss.Color("0")), // Terminal black
 		Title: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("6")).
+			Foreground(lipgloss.Color("7")). // Light grey
 			Bold(true).
 			MarginBottom(1),
 		Subtitle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("5")).
+			Foreground(lipgloss.Color("8")). // Muted grey
 			Italic(true),
 		Border: lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("6")).
+			BorderForeground(lipgloss.Color("8")). // Grey border
 			Padding(1, 2),
 		Highlight: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("3")).
+			Foreground(lipgloss.Color("6")). // Cyan highlight
 			Bold(true),
 		Muted: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("8")),
+			Foreground(lipgloss.Color("8")), // Dark grey
 		Success: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("2")).
+			Foreground(lipgloss.Color("7")). // Light grey instead of green
 			Bold(true),
 		Warning: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("3")).
+			Foreground(lipgloss.Color("8")). // Grey instead of yellow
 			Bold(true),
 		Info: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("4")),
+			Foreground(lipgloss.Color("7")), // Light grey instead of blue
 		ProgressBar: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("8")),
+			Foreground(lipgloss.Color("8")), // Dark grey
 		ProgressFill: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("6")),
+			Foreground(lipgloss.Color("6")), // Cyan fill
 	}
 
 	DarkTheme = Theme{
