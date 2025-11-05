@@ -130,6 +130,31 @@ GoTouch automatically manages configuration files in platform-specific directori
 
 On first run, GoTouch will automatically create a default configuration file if none exists.
 
+## Configuration Quick Copy
+
+```bash
+# Use Anthropic Claude (recommended)
+cp config.anthropic.yaml ~/.config/gotouch/config.yaml
+export GOTOUCH_LLM_API_KEY="your-anthropic-key"
+
+# Use OpenAI GPT
+cp config.openai.yaml ~/.config/gotouch/config.yaml
+export GOTOUCH_LLM_API_KEY="your-openai-key"
+
+# Use Ollama (local, free)
+cp config.ollama.yaml ~/.config/gotouch/config.yaml
+ollama pull llama2
+
+## Usage
+
+```bash
+# Start with default configuration
+gotouch
+
+# Use specific config file
+gotouch --config /path/to/config.yaml
+```
+
 ### Basic Configuration
 
 The default `config.yaml` looks like this:
@@ -243,40 +268,6 @@ GoTouch supports multiple LLM providers for AI-powered adaptive typing practice.
 
 4. **Run GoTouch** - it will now generate adaptive content based on your typing patterns!
 
-### How LLM Mode Works
-
-- **Contextual Generation**: Creates interesting, varied sentences for typing practice
-- **Error Analysis**: Analyzes your typing mistakes in real-time
-- **Adaptive Focus**: Pre-generates sentences targeting your problem characters and words
-- **Topic Continuity**: Maintains coherent themes for natural reading/typing flow
-- **Instant Display**: Shows generated text immediately as it becomes available
-
-### Choosing a Provider
-
-**Cost Comparison** (approximate, for 1 hour of typing practice):
-- **Anthropic Claude Haiku**: ~$0.02-0.05 (highly recommended for cost/quality)
-- **OpenAI GPT-3.5-turbo**: ~$0.01-0.03 (cheapest cloud option)
-- **OpenAI GPT-4**: ~$0.30-0.60 (expensive but highest quality)
-- **Ollama**: $0.00 (free but requires capable hardware)
-
-**Performance**:
-- **Anthropic Claude**: < 1 second response time, excellent quality
-- **OpenAI GPT**: < 2 seconds response time, very good quality
-- **Ollama**: 2-10 seconds depending on hardware, quality varies by model
-
-**Privacy**:
-- **Cloud providers** (Anthropic, OpenAI): Data sent to their servers
-- **Ollama**: Runs locally, data never leaves your machine
-
-## Usage
-
-```bash
-# Start with default configuration
-gotouch
-
-# Use specific config file
-gotouch --config /path/to/config.yaml
-```
 
 ### Keyboard Controls
 
@@ -293,49 +284,7 @@ gotouch --config /path/to/config.yaml
 **After Session:**
 - `Enter` - Exit and save stats
 
-## Quick Reference
-
-### Common Commands
-
-```bash
-# Run with default config
-gotouch
-
-# Use custom config
-gotouch --config ./my-config.yaml
-
-# Build from source
-go build -o gotouch
-
-# Run tests
-go test ./...
 ```
-
-### Configuration Quick Copy
-
-```bash
-# Use Anthropic Claude (recommended)
-cp config.anthropic.yaml ~/.config/gotouch/config.yaml
-export GOTOUCH_LLM_API_KEY="your-anthropic-key"
-
-# Use OpenAI GPT
-cp config.openai.yaml ~/.config/gotouch/config.yaml
-export GOTOUCH_LLM_API_KEY="your-openai-key"
-
-# Use Ollama (local, free)
-cp config.ollama.yaml ~/.config/gotouch/config.yaml
-ollama pull llama2
-```
-
-### Model Recommendations
-
-| Use Case | Provider | Model | Why |
-|----------|----------|-------|-----|
-| Best value | Anthropic | `claude-3-5-haiku-latest` | Fast, cheap, high quality |
-| Highest quality | OpenAI | `gpt-4-turbo` | Best output, expensive |
-| Budget cloud | OpenAI | `gpt-3.5-turbo` | Cheapest cloud option |
-| Offline/Private | Ollama | `llama2` | Free, runs locally |
-
 ## Project Structure
 
 ```
