@@ -14,7 +14,7 @@ A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive
 
 ## Features
 
-- **AI-Powered Adaptive Learning**: Uses Claude AI to generate contextual typing exercises that adapt to your mistakes
+- **AI-Powered Adaptive Learning**: Uses LLMs (Claude, GPT, or local models) to generate contextual typing exercises that adapt to your mistakes
 - **Real-time Statistics**: Track your WPM, accuracy, and errors as you type
 - **Session History**: Automatic saving of typing sessions with historical statistics
 - **Pure Go**: 100% written in go.
@@ -123,7 +123,9 @@ The default `config.yaml` looks like this:
 text:
   source: dummy  # Options: "dummy" or "llm"
   llm:
-    model: "haiku"  # Options: "sonnet" or "haiku"
+    provider: "anthropic"  # Options: "anthropic", "openai", "ollama"
+    model: "claude-3-5-haiku-latest"  # Provider-specific model name
+    api_base: ""  # Optional: Custom API endpoint (for Ollama or Azure OpenAI)
     pregenerate_threshold: 20
     fallback_to_dummy: true
     timeout_seconds: 5
@@ -136,9 +138,11 @@ stats:
 
 You can edit this file directly with your preferred text editor, or use a custom config file location with the `--config` flag.
 
-### LLM Mode Setup (Recommendet)
+### LLM Mode Setup (Recommended)
 
-For AI-powered adaptive typing practice:
+GoTouch supports multiple LLM providers for AI-powered adaptive typing practice. Choose the provider that works best for you:
+
+#### Option 1: Anthropic Claude (Recommended)
 
 1. **Get an Anthropic API Key:**
    - Sign up at [https://console.anthropic.com](https://console.anthropic.com)
@@ -148,35 +152,66 @@ For AI-powered adaptive typing practice:
 
    **Method 1: Environment Variable**
    ```bash
-   export ANTHROPIC_API_KEY="your-api-key-here"
+   export GOTOUCH_LLM_API_KEY="your-anthropic-api-key"
    ```
 
    **Method 2: API Key File (Recommended)**
    ```bash
    # Linux/macOS
-   echo "your-api-key-here" > ~/.config/gotouch/api-key
+   echo "your-anthropic-api-key" > ~/.config/gotouch/api-key
 
    # Windows (PowerShell)
-   echo "your-api-key-here" > $env:APPDATA\gotouch\api-key
+   echo "your-anthropic-api-key" > $env:APPDATA\gotouch\api-key
    ```
 
 3. **Update config.yaml:**
-   ```bash
-   # Linux/macOS
-   nano ~/.config/gotouch/config.yaml
-
-   # Windows
-   notepad %APPDATA%\gotouch\config.yaml
-   ```
-
-   Change `source: dummy` to `source: llm`:
    ```yaml
    text:
      source: llm
      llm:
-       model: "haiku"  # Fast and cost-effective
-       # model: "sonnet"  # More creative, higher quality
+       provider: "anthropic"
+       model: "claude-3-5-haiku-latest"  # Fast and cost-effective
+       # model: "claude-3-5-sonnet-latest"  # More creative, higher quality
    ```
+
+#### Option 2: OpenAI GPT
+
+1. **Get an OpenAI API Key:**
+   - Sign up at [https://platform.openai.com](https://platform.openai.com)
+   - Generate an API key
+
+2. **Set the API key:**
+   ```bash
+   export GOTOUCH_LLM_API_KEY="your-openai-api-key"
+   ```
+
+3. **Update config.yaml:**
+   ```yaml
+   text:
+     source: llm
+     llm:
+       provider: "openai"
+       model: "gpt-4"  # or "gpt-3.5-turbo", "gpt-4-turbo"
+       api_base: ""  # Optional: for Azure OpenAI or custom endpoints
+   ```
+
+#### Option 3: Ollama (Local, Free)
+
+1. **Install Ollama:**
+   - Follow instructions at [https://ollama.ai](https://ollama.ai)
+   - Pull a model: `ollama pull llama2`
+
+2. **Update config.yaml:**
+   ```yaml
+   text:
+     source: llm
+     llm:
+       provider: "ollama"
+       model: "llama2"  # or any model you've pulled
+       api_base: "http://localhost:11434"  # Default Ollama endpoint
+   ```
+
+   No API key needed for Ollama!
 
 4. **Run GoTouch** - it will now generate adaptive content based on your typing patterns!
 
@@ -253,7 +288,7 @@ go test ./...
 go test -cover ./...
 
 # Run LLM integration tests (requires API key)
-export ANTHROPIC_API_KEY="your-key"
+export GOTOUCH_LLM_API_KEY="your-api-key"
 go test -v ./internal/sources
 
 # Run specific test
@@ -275,7 +310,7 @@ GOOS=windows GOARCH=amd64 go build -o gotouch-windows-amd64.exe
 
 ### Dependencies
 
-- [github.com/anthropics/anthropic-sdk-go](https://github.com/anthropics/anthropic-sdk-go) - Claude AI SDK
+- [github.com/tmc/langchaingo](https://github.com/tmc/langchaingo) - Multi-provider LLM integration (Anthropic, OpenAI, Ollama)
 - [github.com/charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea) - Terminal UI framework
 - [github.com/charmbracelet/lipgloss](https://github.com/charmbracelet/lipgloss) - Terminal styling
 - [gopkg.in/yaml.v3](https://gopkg.in/yaml.v3) - YAML configuration
@@ -310,9 +345,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Troubleshooting
 
-### "ANTHROPIC_API_KEY environment variable not set"
+### "GOTOUCH_LLM_API_KEY environment variable not set"
 
-Make sure you've set up your API key using one of the methods in [LLM Mode Setup](#llm-mode-setup-optional).
+Make sure you've set up your API key using one of the methods in [LLM Mode Setup](#llm-mode-setup-recommended). This applies to both Anthropic and OpenAI providers (Ollama doesn't need an API key).
 
 ### LLM mode falls back to dummy text
 

@@ -4,25 +4,28 @@ import (
 	"context"
 	"fmt"
 	"go-touch/internal/config"
+	"go-touch/internal/types"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/anthropic"
+	"github.com/tmc/langchaingo/llms/ollama"
+	"github.com/tmc/langchaingo/llms/openai"
 )
 
 type LLMSource struct {
-	client  anthropic.Client
-	model   anthropic.Model
+	model   llms.Model
 	timeout time.Duration
 }
 
-func NewLLMSource(modelName string, timeoutSeconds int) (*LLMSource, error) {
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
+// NewLLMSource creates a new LLM source with the specified provider and configuration
+func NewLLMSource(llmConfig types.LLMConfig) (*LLMSource, error) {
+	// Get API key from environment variable
+	apiKey := os.Getenv("GOTOUCH_LLM_API_KEY")
 	if apiKey == "" {
 		// Try loading from api-key file as fallback
-		// Check config directory first, then current directory
 		apiKeyPath := config.FindAPIKeyFile()
 		if apiKeyPath != "" {
 			keyData, err := os.ReadFile(apiKeyPath)
@@ -32,24 +35,61 @@ func NewLLMSource(modelName string, timeoutSeconds int) (*LLMSource, error) {
 		}
 	}
 
-	if apiKey == "" {
-		return nil, fmt.Errorf("ANTHROPIC_API_KEY environment variable not set and api-key file not found")
-	}
+	// Create provider-specific client
+	var model llms.Model
+	var err error
 
-	client := anthropic.NewClient(
-		option.WithAPIKey(apiKey),
-	)
+	switch strings.ToLower(llmConfig.Provider) {
+	case "anthropic":
+		if apiKey == "" {
+			return nil, fmt.Errorf("GOTOUCH_LLM_API_KEY environment variable not set and api-key file not found")
+		}
+		model, err = anthropic.New(
+			anthropic.WithModel(llmConfig.Model),
+			anthropic.WithToken(apiKey),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Anthropic client: %w", err)
+		}
 
-	// }
-	model := anthropic.ModelClaude3_5HaikuLatest
-	if modelName == "sonnet" {
-		model = anthropic.ModelClaude3_5SonnetLatest
+	case "openai":
+		if apiKey == "" {
+			return nil, fmt.Errorf("GOTOUCH_LLM_API_KEY environment variable not set and api-key file not found")
+		}
+		opts := []openai.Option{
+			openai.WithModel(llmConfig.Model),
+			openai.WithToken(apiKey),
+		}
+		if llmConfig.APIBase != "" {
+			opts = append(opts, openai.WithBaseURL(llmConfig.APIBase))
+		}
+		model, err = openai.New(opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create OpenAI client: %w", err)
+		}
+
+	case "ollama":
+		opts := []ollama.Option{
+			ollama.WithModel(llmConfig.Model),
+		}
+		if llmConfig.APIBase != "" {
+			opts = append(opts, ollama.WithServerURL(llmConfig.APIBase))
+		} else {
+			// Default Ollama endpoint
+			opts = append(opts, ollama.WithServerURL("http://localhost:11434"))
+		}
+		model, err = ollama.New(opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Ollama client: %w", err)
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported provider: %s (supported: anthropic, openai, ollama)", llmConfig.Provider)
 	}
 
 	return &LLMSource{
-		client:  client,
 		model:   model,
-		timeout: time.Duration(timeoutSeconds) * time.Second,
+		timeout: time.Duration(llmConfig.TimeoutSeconds) * time.Second,
 	}, nil
 }
 
@@ -62,39 +102,12 @@ Make it varied content (quotes, facts, or creative).
 Length: 50-80 characters.
 Only output the sentence, nothing else.`
 
-	message, err := l.client.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:     l.model,
-		MaxTokens: 100,
-		Messages: []anthropic.MessageParam{
-			{
-				Role: anthropic.MessageParamRoleUser,
-				Content: []anthropic.ContentBlockParamUnion{
-					{
-						OfText: &anthropic.TextBlockParam{
-							Text: prompt,
-						},
-					},
-				},
-			},
-		},
-	})
-
+	response, err := llms.GenerateFromSinglePrompt(ctx, l.model, prompt)
 	if err != nil {
 		return "", fmt.Errorf("API call failed: %w", err)
 	}
 
-	if len(message.Content) == 0 {
-		return "", fmt.Errorf("empty response from API")
-	}
-
-	// Extract text from content blocks
-	for _, block := range message.Content {
-		if block.Type == "text" && block.Text != "" {
-			return strings.TrimSpace(block.Text), nil
-		}
-	}
-
-	return "", fmt.Errorf("no text content in response")
+	return strings.TrimSpace(response), nil
 }
 
 func (l *LLMSource) GetNextSentence(previousSentence string, errorChars []rune, errorWords []string) (string, error) {
@@ -122,37 +135,10 @@ Generate ONE sentence (50-80 characters) that:
 
 Only output the sentence, nothing else.`)
 
-	message, err := l.client.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:     l.model,
-		MaxTokens: 150,
-		Messages: []anthropic.MessageParam{
-			{
-				Role: anthropic.MessageParamRoleUser,
-				Content: []anthropic.ContentBlockParamUnion{
-					{
-						OfText: &anthropic.TextBlockParam{
-							Text: promptBuilder.String(),
-						},
-					},
-				},
-			},
-		},
-	})
-
+	response, err := llms.GenerateFromSinglePrompt(ctx, l.model, promptBuilder.String())
 	if err != nil {
 		return "", fmt.Errorf("API call failed: %w", err)
 	}
 
-	if len(message.Content) == 0 {
-		return "", fmt.Errorf("empty response from API")
-	}
-
-	// Extract text from content blocks
-	for _, block := range message.Content {
-		if block.Type == "text" && block.Text != "" {
-			return strings.TrimSpace(block.Text), nil
-		}
-	}
-
-	return "", fmt.Errorf("no text content in response")
+	return strings.TrimSpace(response), nil
 }

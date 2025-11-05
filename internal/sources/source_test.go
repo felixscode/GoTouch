@@ -63,15 +63,15 @@ func TestNewTextSource_Dummy(t *testing.T) {
 
 func TestNewTextSource_LLM_WithAPIKey(t *testing.T) {
 	// Setup environment
-	originalKey := os.Getenv("ANTHROPIC_API_KEY")
+	originalKey := os.Getenv("GOTOUCH_LLM_API_KEY")
 	defer func() {
 		if originalKey != "" {
-			os.Setenv("ANTHROPIC_API_KEY", originalKey)
+			os.Setenv("GOTOUCH_LLM_API_KEY", originalKey)
 		} else {
-			os.Unsetenv("ANTHROPIC_API_KEY")
+			os.Unsetenv("GOTOUCH_LLM_API_KEY")
 		}
 	}()
-	os.Setenv("ANTHROPIC_API_KEY", "test-key-123")
+	os.Setenv("GOTOUCH_LLM_API_KEY", "test-key-123")
 
 	tests := []struct {
 		name       string
@@ -88,7 +88,8 @@ func TestNewTextSource_LLM_WithAPIKey(t *testing.T) {
 			config := types.TextConfig{
 				Source: tt.sourceType,
 				LLM: types.LLMConfig{
-					Model:          "haiku",
+					Provider:       "anthropic",
+					Model:          "claude-3-5-haiku-latest",
 					TimeoutSeconds: 5,
 				},
 			}
@@ -116,13 +117,13 @@ func TestNewTextSource_LLM_WithAPIKey(t *testing.T) {
 
 func TestNewTextSource_LLM_WithoutAPIKey_FallbackToDummy(t *testing.T) {
 	// Remove API key
-	originalKey := os.Getenv("ANTHROPIC_API_KEY")
+	originalKey := os.Getenv("GOTOUCH_LLM_API_KEY")
 	defer func() {
 		if originalKey != "" {
-			os.Setenv("ANTHROPIC_API_KEY", originalKey)
+			os.Setenv("GOTOUCH_LLM_API_KEY", originalKey)
 		}
 	}()
-	os.Unsetenv("ANTHROPIC_API_KEY")
+	os.Unsetenv("GOTOUCH_LLM_API_KEY")
 
 	// Remove api-key file if it exists
 	os.Remove("api-key")
@@ -130,9 +131,10 @@ func TestNewTextSource_LLM_WithoutAPIKey_FallbackToDummy(t *testing.T) {
 	config := types.TextConfig{
 		Source: "llm",
 		LLM: types.LLMConfig{
-			Model:            "haiku",
-			TimeoutSeconds:   5,
-			FallbackToDummy:  true,
+			Provider:        "anthropic",
+			Model:           "claude-3-5-haiku-latest",
+			TimeoutSeconds:  5,
+			FallbackToDummy: true,
 		},
 	}
 
@@ -152,13 +154,13 @@ func TestNewTextSource_LLM_WithoutAPIKey_FallbackToDummy(t *testing.T) {
 
 func TestNewTextSource_LLM_WithoutAPIKey_NoFallback(t *testing.T) {
 	// Remove API key
-	originalKey := os.Getenv("ANTHROPIC_API_KEY")
+	originalKey := os.Getenv("GOTOUCH_LLM_API_KEY")
 	defer func() {
 		if originalKey != "" {
-			os.Setenv("ANTHROPIC_API_KEY", originalKey)
+			os.Setenv("GOTOUCH_LLM_API_KEY", originalKey)
 		}
 	}()
-	os.Unsetenv("ANTHROPIC_API_KEY")
+	os.Unsetenv("GOTOUCH_LLM_API_KEY")
 
 	// Remove api-key file if it exists
 	os.Remove("api-key")
@@ -166,9 +168,10 @@ func TestNewTextSource_LLM_WithoutAPIKey_NoFallback(t *testing.T) {
 	config := types.TextConfig{
 		Source: "llm",
 		LLM: types.LLMConfig{
-			Model:            "haiku",
-			TimeoutSeconds:   5,
-			FallbackToDummy:  false,
+			Provider:        "anthropic",
+			Model:           "claude-3-5-haiku-latest",
+			TimeoutSeconds:  5,
+			FallbackToDummy: false,
 		},
 	}
 
