@@ -229,7 +229,7 @@ func (m welcomeModel) View() string {
 	for i, choice := range m.choices {
 		cursor := "  " // no cursor
 		if m.cursor == i {
-			cursor = DefaultTheme.Highlight.Render("▶ ")
+			cursor = DefaultTheme.Highlight.Render("> ")
 		}
 
 		choiceText := choice.String()
@@ -337,7 +337,7 @@ func (m dashboardModel) View() string {
 	var s strings.Builder
 
 	// Title with celebration
-	title := DefaultTheme.Title.Render("🎉 SESSION COMPLETE! 🎉")
+	title := DefaultTheme.Title.Render("SESSION COMPLETE!")
 	s.WriteString(lipgloss.NewStyle().
 		Width(60).
 		Align(lipgloss.Center).
@@ -346,19 +346,11 @@ func (m dashboardModel) View() string {
 
 	// Current session stats in a bordered box
 	var sessionStats strings.Builder
-	sessionStats.WriteString(DefaultTheme.Success.Render("📊 Your Performance") + "\n\n")
-
-	// Determine performance level
-	performanceEmoji := "⭐"
-	if m.currentSession.WPM >= 60 && m.currentSession.Accuracy >= 95 {
-		performanceEmoji = "🏆"
-	} else if m.currentSession.WPM >= 40 && m.currentSession.Accuracy >= 90 {
-		performanceEmoji = "🌟"
-	}
+	sessionStats.WriteString(DefaultTheme.Success.Render("Your Performance") + "\n\n")
 
 	sessionStats.WriteString(fmt.Sprintf("%s WPM:      %s\n",
 		DefaultTheme.Info.Render("│"),
-		DefaultTheme.Highlight.Render(fmt.Sprintf("%.0f %s", m.currentSession.WPM, performanceEmoji))))
+		DefaultTheme.Highlight.Render(fmt.Sprintf("%.0f", m.currentSession.WPM))))
 	sessionStats.WriteString(fmt.Sprintf("%s Accuracy: %s\n",
 		DefaultTheme.Info.Render("│"),
 		DefaultTheme.Success.Render(fmt.Sprintf("%.1f%%", m.currentSession.Accuracy))))
@@ -384,7 +376,7 @@ func (m dashboardModel) View() string {
 		avgWPM, bestWPM, avgAccuracy := calculateHistoricalStats(m.allStats)
 
 		var histStats strings.Builder
-		histStats.WriteString(DefaultTheme.Info.Render("📈 Historical Stats") + "\n\n")
+		histStats.WriteString(DefaultTheme.Info.Render("Historical Stats") + "\n\n")
 		histStats.WriteString(fmt.Sprintf("%s Average WPM:    %.0f\n",
 			DefaultTheme.Muted.Render("│"), avgWPM))
 		histStats.WriteString(fmt.Sprintf("%s Best WPM:       %s\n",
@@ -409,13 +401,13 @@ func (m dashboardModel) View() string {
 	// Encouraging message based on performance
 	var message string
 	if m.currentSession.Accuracy >= 95 && m.currentSession.WPM >= 50 {
-		message = "Outstanding! You're a typing master! 🚀"
+		message = "Outstanding! You're a typing master!"
 	} else if m.currentSession.Accuracy >= 90 && m.currentSession.WPM >= 40 {
-		message = "Great job! Keep up the excellent work! ✨"
+		message = "Great job! Keep up the excellent work!"
 	} else if m.currentSession.Accuracy >= 85 {
-		message = "Good progress! Practice makes perfect! 💪"
+		message = "Good progress! Practice makes perfect!"
 	} else {
-		message = "Keep practicing! You're improving! 🌱"
+		message = "Keep practicing! You're improving!"
 	}
 
 	s.WriteString(lipgloss.NewStyle().
@@ -818,7 +810,7 @@ func (m sessionModel) View() string {
 		var s strings.Builder
 
 		// Title
-		s.WriteString(DefaultTheme.Title.Render("⚙️  Session Configuration"))
+		s.WriteString(DefaultTheme.Title.Render("Session Configuration"))
 		s.WriteString("\n\n")
 
 		// Duration selector in a box
@@ -853,8 +845,8 @@ func (m sessionModel) View() string {
 			Padding(0, 1).
 			Width(45).
 			Render(
-				DefaultTheme.Success.Render("▶  Press ENTER to start") + "\n" +
-					DefaultTheme.Muted.Render("   Press ESC or CTRL-C to exit"))
+				DefaultTheme.Success.Render("Press ENTER to start") + "\n" +
+					DefaultTheme.Muted.Render("Press ESC or CTRL-C to exit"))
 
 		s.WriteString(instructBox)
 
@@ -890,7 +882,7 @@ func (m sessionModel) View() string {
 
 	// Add loading indicator if generation is pending
 	if m.generationPending {
-		statsHeader += " | ⏳ Generating..."
+		statsHeader += " | Generating..."
 	}
 
 	statsHeader += "\n"
