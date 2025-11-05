@@ -193,6 +193,7 @@ func (m welcomeModel) View() string {
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("8")).
 			Padding(0, 1).
+			Align(lipgloss.Center).
 			Render(fmt.Sprintf(
 				"%s WPM: %.0f | %s WPM: %.0f | %s: %.1f%% | %s: %d",
 				DefaultTheme.Info.Render("Avg"),
@@ -204,7 +205,12 @@ func (m welcomeModel) View() string {
 				DefaultTheme.Info.Render("Sessions"),
 				len(m.stats.Sessions),
 			))
-		s.WriteString(statsBox)
+
+		// Center the stats box
+		centeredStats := lipgloss.NewStyle().
+			Align(lipgloss.Center).
+			Render(statsBox)
+		s.WriteString(centeredStats)
 		s.WriteString("\n\n")
 	}
 
@@ -213,7 +219,7 @@ func (m welcomeModel) View() string {
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("8")).
 		Padding(1, 2).
-		Width(50)
+		Align(lipgloss.Center)
 
 	var menu strings.Builder
 	for i, choice := range m.choices {
@@ -230,9 +236,20 @@ func (m welcomeModel) View() string {
 		menu.WriteString(fmt.Sprintf("%s %s\n", cursor, choiceText))
 	}
 
-	s.WriteString(menuBox.Render(menu.String()))
+	menuRendered := menuBox.Render(menu.String())
+
+	// Center the menu box
+	centeredMenu := lipgloss.NewStyle().
+		Align(lipgloss.Center).
+		Render(menuRendered)
+	s.WriteString(centeredMenu)
 	s.WriteString("\n\n")
-	s.WriteString(DefaultTheme.Muted.Render("Use arrow keys (↑/↓) to navigate • Enter to select • q/Ctrl+C to quit"))
+
+	// Center the help text
+	helpText := lipgloss.NewStyle().
+		Align(lipgloss.Center).
+		Render(DefaultTheme.Muted.Render("Use arrow keys (↑/↓) to navigate • Enter to select • q/Ctrl+C to quit"))
+	s.WriteString(helpText)
 	s.WriteString("\n")
 
 	return s.String()
