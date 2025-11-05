@@ -666,16 +666,19 @@ func (m *sessionModel) checkForMistypedWord() {
 
 					// Add to problem words if it had any errors OR if final word doesn't match
 					if hadErrors || typedWord != targetWord {
+						// Show the target word (what they should have typed) if they had errors
+						wordToAdd := targetWord
+
 						// Word was mistyped - add to current problem words if not already there
 						alreadyAdded := false
 						for _, w := range m.currentProblemWords {
-							if w == typedWord {
+							if w == wordToAdd {
 								alreadyAdded = true
 								break
 							}
 						}
 						if !alreadyAdded && len(m.currentProblemWords) < 10 { // Limit to 10 words
-							m.currentProblemWords = append(m.currentProblemWords, typedWord)
+							m.currentProblemWords = append(m.currentProblemWords, wordToAdd)
 						}
 					}
 				}
