@@ -26,11 +26,11 @@ A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive
 
 ## Features
 
-- **🤖 AI-Powered Adaptive Learning**: Uses LLMs (Claude, GPT, or local models) to generate contextual typing exercises that adapt to your mistakes
-- **🔌 Multi-Provider Support**: Choose between Anthropic Claude, OpenAI GPT, or local Ollama models
-- **📊 Real-time Statistics**: Track your WPM, accuracy, and errors as you type
-- **📈 Session History**: Automatic saving of typing sessions with historical statistics
-- **⚡ Pure Go**: 100% written in Go, fast and lightweight
+- **AI-Powered Adaptive Learning**: Uses LLMs (Claude, GPT, or local models) to generate contextual typing exercises that adapt to your mistakes
+- **Multi-Provider Support**: Choose between Anthropic Claude, OpenAI GPT, or local Ollama models
+- **Real-time Statistics**: Track your WPM, accuracy, and errors as you type
+- **Session History**: Automatic saving of typing sessions with historical statistics
+- **Pure Go**: 100% written in Go, fast and lightweight
 
 ## Installation
 
@@ -475,4 +475,4 @@ cp config.ollama.yaml ~/.config/gotouch/config.yaml
 
 ---
 
-**Happy Typing!** 🚀
+**Happy Typing!**
