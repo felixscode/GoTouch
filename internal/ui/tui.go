@@ -336,65 +336,158 @@ func (m dashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m dashboardModel) View() string {
 	var s strings.Builder
 
-	// Title with celebration
-	title := DefaultTheme.Title.Render("SESSION COMPLETE!")
-	s.WriteString(lipgloss.NewStyle().
-		Width(60).
+	// Determine terminal width, default to 80 if not set
+	termWidth := m.width
+	if termWidth == 0 {
+		termWidth = 80
+	}
+
+	// Title box with border
+	titleStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("6")).
+		Padding(0, 2).
 		Align(lipgloss.Center).
-		Render(title))
+		Width(termWidth - 4)
+
+	title := titleStyle.Render(DefaultTheme.Title.Render("SESSION COMPLETE!"))
+	s.WriteString(title)
 	s.WriteString("\n\n")
 
-	// Current session stats in a bordered box
-	var sessionStats strings.Builder
-	sessionStats.WriteString(DefaultTheme.Success.Render("Your Performance") + "\n\n")
+	// Stat box style
+	statBoxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("8")).
+		Padding(1, 1).
+		Align(lipgloss.Center).
+		Width(18)
 
-	sessionStats.WriteString(fmt.Sprintf("%s WPM:      %s\n",
-		DefaultTheme.Info.Render("│"),
-		DefaultTheme.Highlight.Render(fmt.Sprintf("%.0f", m.currentSession.WPM))))
-	sessionStats.WriteString(fmt.Sprintf("%s Accuracy: %s\n",
-		DefaultTheme.Info.Render("│"),
-		DefaultTheme.Success.Render(fmt.Sprintf("%.1f%%", m.currentSession.Accuracy))))
-	sessionStats.WriteString(fmt.Sprintf("%s Errors:   %s\n",
-		DefaultTheme.Info.Render("│"),
-		fmt.Sprintf("%d", m.currentSession.Errors)))
-	sessionStats.WriteString(fmt.Sprintf("%s Duration: %s\n",
-		DefaultTheme.Info.Render("│"),
-		formatDuration(m.currentSession.Duration)))
+	// Create individual stat boxes for current session
+	wpmBox := statBoxStyle.Copy().
+		BorderForeground(lipgloss.Color("6")).
+		Render(fmt.Sprintf("%s\n\n%s",
+			DefaultTheme.Muted.Render("WPM"),
+			DefaultTheme.Highlight.Render(fmt.Sprintf("%.0f", m.currentSession.WPM))))
 
-	sessionBox := lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
+	accuracyBox := statBoxStyle.Copy().
 		BorderForeground(lipgloss.Color("2")).
-		Padding(1, 2).
-		Width(50).
-		Render(sessionStats.String())
+		Render(fmt.Sprintf("%s\n\n%s",
+			DefaultTheme.Muted.Render("Accuracy"),
+			DefaultTheme.Success.Render(fmt.Sprintf("%.1f%%", m.currentSession.Accuracy))))
 
-	s.WriteString(sessionBox)
+	errorsBox := statBoxStyle.Copy().
+		BorderForeground(lipgloss.Color("1")).
+		Render(fmt.Sprintf("%s\n\n%s",
+			DefaultTheme.Muted.Render("Errors"),
+			fmt.Sprintf("%d", m.currentSession.Errors)))
+
+	durationBox := statBoxStyle.Copy().
+		BorderForeground(lipgloss.Color("4")).
+		Render(fmt.Sprintf("%s\n\n%s",
+			DefaultTheme.Muted.Render("Duration"),
+			formatDuration(m.currentSession.Duration)))
+
+	// Section title for current performance
+	perfTitle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderTop(true).
+		BorderForeground(lipgloss.Color("2")).
+		Padding(0, 2).
+		Align(lipgloss.Center).
+		Width(termWidth - 4).
+		Render(DefaultTheme.Success.Render("Your Performance"))
+
+	s.WriteString(perfTitle)
 	s.WriteString("\n\n")
 
-	// Historical stats in a bordered box
+	// Arrange stat boxes horizontally or vertically based on width
+	if termWidth >= 90 {
+		// Wide layout: all boxes in one row
+		statsRow := lipgloss.JoinHorizontal(lipgloss.Top, wpmBox, " ", accuracyBox, " ", errorsBox, " ", durationBox)
+		s.WriteString(lipgloss.NewStyle().
+			Align(lipgloss.Center).
+			Width(termWidth).
+			Render(statsRow))
+	} else {
+		// Narrow layout: two rows of two boxes
+		row1 := lipgloss.JoinHorizontal(lipgloss.Top, wpmBox, " ", accuracyBox)
+		row2 := lipgloss.JoinHorizontal(lipgloss.Top, errorsBox, " ", durationBox)
+		s.WriteString(lipgloss.NewStyle().
+			Align(lipgloss.Center).
+			Width(termWidth).
+			Render(row1))
+		s.WriteString("\n")
+		s.WriteString(lipgloss.NewStyle().
+			Align(lipgloss.Center).
+			Width(termWidth).
+			Render(row2))
+	}
+
+	s.WriteString("\n\n")
+
+	// Historical stats section
 	if len(m.allStats.Sessions) > 0 {
 		avgWPM, bestWPM, avgAccuracy := calculateHistoricalStats(m.allStats)
 
-		var histStats strings.Builder
-		histStats.WriteString(DefaultTheme.Info.Render("Historical Stats") + "\n\n")
-		histStats.WriteString(fmt.Sprintf("%s Average WPM:    %.0f\n",
-			DefaultTheme.Muted.Render("│"), avgWPM))
-		histStats.WriteString(fmt.Sprintf("%s Best WPM:       %s\n",
-			DefaultTheme.Muted.Render("│"),
-			DefaultTheme.Success.Render(fmt.Sprintf("%.0f", bestWPM))))
-		histStats.WriteString(fmt.Sprintf("%s Avg Accuracy:   %.1f%%\n",
-			DefaultTheme.Muted.Render("│"), avgAccuracy))
-		histStats.WriteString(fmt.Sprintf("%s Total Sessions: %d\n",
-			DefaultTheme.Muted.Render("│"), len(m.allStats.Sessions)))
-
-		histBox := lipgloss.NewStyle().
-			BorderStyle(lipgloss.RoundedBorder()).
+		// Historical stats title
+		histTitle := lipgloss.NewStyle().
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderTop(true).
 			BorderForeground(lipgloss.Color("4")).
-			Padding(1, 2).
-			Width(50).
-			Render(histStats.String())
+			Padding(0, 2).
+			Align(lipgloss.Center).
+			Width(termWidth - 4).
+			Render(DefaultTheme.Info.Render("Historical Stats"))
 
-		s.WriteString(histBox)
+		s.WriteString(histTitle)
+		s.WriteString("\n\n")
+
+		// Create historical stat boxes
+		avgWPMBox := statBoxStyle.Copy().
+			BorderForeground(lipgloss.Color("6")).
+			Render(fmt.Sprintf("%s\n\n%s",
+				DefaultTheme.Muted.Render("Avg WPM"),
+				fmt.Sprintf("%.0f", avgWPM)))
+
+		bestWPMBox := statBoxStyle.Copy().
+			BorderForeground(lipgloss.Color("2")).
+			Render(fmt.Sprintf("%s\n\n%s",
+				DefaultTheme.Muted.Render("Best WPM"),
+				DefaultTheme.Success.Render(fmt.Sprintf("%.0f", bestWPM))))
+
+		avgAccBox := statBoxStyle.Copy().
+			BorderForeground(lipgloss.Color("5")).
+			Render(fmt.Sprintf("%s\n\n%s",
+				DefaultTheme.Muted.Render("Avg Accuracy"),
+				fmt.Sprintf("%.1f%%", avgAccuracy)))
+
+		sessionsBox := statBoxStyle.Copy().
+			BorderForeground(lipgloss.Color("4")).
+			Render(fmt.Sprintf("%s\n\n%s",
+				DefaultTheme.Muted.Render("Sessions"),
+				fmt.Sprintf("%d", len(m.allStats.Sessions))))
+
+		// Arrange historical stat boxes
+		if termWidth >= 90 {
+			histRow := lipgloss.JoinHorizontal(lipgloss.Top, avgWPMBox, " ", bestWPMBox, " ", avgAccBox, " ", sessionsBox)
+			s.WriteString(lipgloss.NewStyle().
+				Align(lipgloss.Center).
+				Width(termWidth).
+				Render(histRow))
+		} else {
+			histRow1 := lipgloss.JoinHorizontal(lipgloss.Top, avgWPMBox, " ", bestWPMBox)
+			histRow2 := lipgloss.JoinHorizontal(lipgloss.Top, avgAccBox, " ", sessionsBox)
+			s.WriteString(lipgloss.NewStyle().
+				Align(lipgloss.Center).
+				Width(termWidth).
+				Render(histRow1))
+			s.WriteString("\n")
+			s.WriteString(lipgloss.NewStyle().
+				Align(lipgloss.Center).
+				Width(termWidth).
+				Render(histRow2))
+		}
+
 		s.WriteString("\n\n")
 	}
 
@@ -410,15 +503,25 @@ func (m dashboardModel) View() string {
 		message = "Keep practicing! You're improving!"
 	}
 
-	s.WriteString(lipgloss.NewStyle().
+	messageBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("5")).
+		Padding(0, 2).
+		Align(lipgloss.Center).
+		Width(termWidth - 4).
 		Foreground(lipgloss.Color("5")).
 		Italic(true).
-		Width(50).
-		Align(lipgloss.Center).
-		Render(message))
+		Render(message)
+
+	s.WriteString(messageBox)
 	s.WriteString("\n\n")
 
-	s.WriteString(DefaultTheme.Muted.Render("Press Enter to exit..."))
+	exitPrompt := lipgloss.NewStyle().
+		Align(lipgloss.Center).
+		Width(termWidth).
+		Render(DefaultTheme.Muted.Render("Press Enter to exit..."))
+
+	s.WriteString(exitPrompt)
 
 	return s.String()
 }
