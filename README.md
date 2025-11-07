@@ -1,6 +1,7 @@
 # GoTouch
 
 [![Build and Release](https://github.com/felixscode/GoTouch/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/felixscode/GoTouch/actions/workflows/build-and-release.yml)
+[![codecov](https://codecov.io/gh/felixscode/GoTouch/branch/main/graph/badge.svg)](https://codecov.io/gh/felixscode/GoTouch)
 [![Go Version](https://img.shields.io/badge/go-1.24.4-blue.svg)](https://go.dev/dl/)
 [![Release](https://img.shields.io/github/v/release/felixscode/GoTouch)](https://github.com/felixscode/GoTouch/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
