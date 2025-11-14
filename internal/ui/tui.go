@@ -1056,13 +1056,9 @@ func (m sessionModel) View() string {
 			viewportEnd = displayWidth
 		}
 
-		// Adjust if we're near the end
+		// Clamp viewport end to text length without breaking center alignment
 		if viewportEnd > textLen {
 			viewportEnd = textLen
-			viewportStart = textLen - displayWidth
-			if viewportStart < 0 {
-				viewportStart = 0
-			}
 		}
 	}
 
