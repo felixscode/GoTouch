@@ -16,6 +16,9 @@ text:
 
 ui:
   theme: default
+  block_on_typo: false
+  typo_flash_enabled: true
+  typo_flash_duration_ms: 200
 
 stats:
   file_dir: ~/.local/share/gotouch/user_stats.json

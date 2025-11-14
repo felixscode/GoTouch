@@ -601,6 +601,12 @@ type sessionModel struct {
 	pregenerateThreshold  int                // Chars before end to trigger
 	currentSentenceEndPos int                // Position where current sentence ends
 	config                types.Config       // Config for LLM settings
+
+	// Typo blocking fields
+	hasTypo           bool      // True if current character is a typo
+	typoFlashTime     time.Time // Time when typo flash started
+	currentWordIndex  int       // Index of current word being typed (0-based)
+	targetWords       []string  // Target text split into words for easier comparison
 }
 
 func (m sessionModel) Init() tea.Cmd {
@@ -627,86 +633,89 @@ type generationErrorMsg struct {
 	err error
 }
 
+type typoFlashMsg struct{}
+
+// typoFlashCmd returns a command that triggers the end of the flash effect
+func typoFlashCmd(duration time.Duration) tea.Cmd {
+	return tea.Tick(duration, func(t time.Time) tea.Msg {
+		return typoFlashMsg{}
+	})
+}
+
 // checkForMistypedWord checks if the user just completed a word and if it was mistyped
 func (m *sessionModel) checkForMistypedWord() {
 	typedLen := len(m.typedText)
 
-	// Check if we just typed a space (completed a word)
+	// Check if we just typed a space (completed a word) or reached the end
 	if typedLen > 0 && typedLen > m.lastWordEnd {
-		// Check if the last character is a space or if we reached the end of a word in target text
-		if (typedLen <= len(m.text) && m.typedText[typedLen-1] == ' ') ||
-		   (typedLen == len(m.text)) {
+		justCompletedWord := false
 
-			// Extract the word we just typed
+		// Check if the last character is a space or if we reached the end
+		if typedLen <= len(m.typedText) && typedLen > 0 && m.typedText[typedLen-1] == ' ' {
+			justCompletedWord = true
+		} else if typedLen == len(m.text) {
+			justCompletedWord = true
+		}
+
+		if justCompletedWord {
+			// Split typed text into words to get current word
+			typedWords := strings.Fields(m.typedText[:typedLen])
+
+			if len(typedWords) == 0 {
+				m.lastWordEnd = typedLen
+				return
+			}
+
+			// Get the word we just completed (last word in typed text)
+			currentWordIdx := len(typedWords) - 1
+			typedWord := typedWords[currentWordIdx]
+
+			// Make sure we have enough target words
+			if currentWordIdx >= len(m.targetWords) {
+				m.lastWordEnd = typedLen
+				return
+			}
+
+			targetWord := m.targetWords[currentWordIdx]
+
+			// Find the character positions for this word in the typed text
 			wordStart := m.lastWordEnd
 			// Skip leading spaces
 			for wordStart < typedLen && m.typedText[wordStart] == ' ' {
 				wordStart++
 			}
-
 			wordEnd := typedLen
 			// Don't include trailing space
-			if wordEnd > 0 && typedLen <= len(m.typedText) && m.typedText[wordEnd-1] == ' ' {
+			if wordEnd > 0 && m.typedText[wordEnd-1] == ' ' {
 				wordEnd--
 			}
 
-			if wordStart < wordEnd {
-				typedWord := m.typedText[wordStart:wordEnd]
-
-				// Extract corresponding word from target text
-				targetWordEnd := wordEnd
-				if targetWordEnd > len(m.text) {
-					targetWordEnd = len(m.text)
+			// Check if word had any errors during typing (even if corrected with backspace)
+			hadErrors := false
+			for i := wordStart; i < wordEnd; i++ {
+				if m.wordsWithErrors[i] {
+					hadErrors = true
+					break
 				}
+			}
 
-				targetWordStart := wordStart
-				if targetWordStart > len(m.text) {
-					targetWordStart = len(m.text)
-				}
-
-				// Skip leading spaces in target
-				for targetWordStart < targetWordEnd && targetWordStart < len(m.text) && m.text[targetWordStart] == ' ' {
-					targetWordStart++
-				}
-
-				// Don't include trailing space in target
-				if targetWordEnd > 0 && targetWordEnd <= len(m.text) && m.text[targetWordEnd-1] == ' ' {
-					targetWordEnd--
-				}
-
-				if targetWordStart < targetWordEnd && targetWordEnd <= len(m.text) {
-					targetWord := m.text[targetWordStart:targetWordEnd]
-
-					// Check if word had any errors during typing (even if corrected)
-					hadErrors := false
-					for i := wordStart; i < wordEnd; i++ {
-						if m.wordsWithErrors[i] {
-							hadErrors = true
-							break
-						}
+			// Add to problem words if it had any errors OR if final word doesn't match
+			if hadErrors || typedWord != targetWord {
+				// Word was mistyped - add to current problem words if not already there
+				alreadyAdded := false
+				for _, w := range m.currentProblemWords {
+					if w == targetWord {
+						alreadyAdded = true
+						break
 					}
-
-					// Add to problem words if it had any errors OR if final word doesn't match
-					if hadErrors || typedWord != targetWord {
-						// Show the target word (what they should have typed) if they had errors
-						wordToAdd := targetWord
-
-						// Word was mistyped - add to current problem words if not already there
-						alreadyAdded := false
-						for _, w := range m.currentProblemWords {
-							if w == wordToAdd {
-								alreadyAdded = true
-								break
-							}
-						}
-						if !alreadyAdded && len(m.currentProblemWords) < 10 { // Limit to 10 words
-							m.currentProblemWords = append(m.currentProblemWords, wordToAdd)
-						}
-					}
+				}
+				if !alreadyAdded && len(m.currentProblemWords) < 10 { // Limit to 10 words
+					m.currentProblemWords = append(m.currentProblemWords, targetWord)
 				}
 			}
 
 			m.lastWordEnd = typedLen
+			m.currentWordIndex = len(typedWords)
 		}
 	}
 }
@@ -716,6 +725,11 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		return m, nil
+
+	case typoFlashMsg:
+		// Flash effect ended, clear the flash time
+		m.typoFlashTime = time.Time{}
 		return m, nil
 
 	case tickMsg:
@@ -748,6 +762,9 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Append the new sentence to display text immediately
 		m.text += " " + msg.sentence
+
+		// Update target words with the new text
+		m.targetWords = strings.Fields(m.text)
 
 		return m, nil
 
@@ -798,6 +815,8 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "backspace":
 			if len(m.typedText) > 0 {
 				m.typedText = m.typedText[:len(m.typedText)-1]
+				// Clear typo flag when user deletes the incorrect character
+				m.hasTypo = false
 			}
 			return m, nil
 		}
@@ -816,6 +835,11 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				key = " "
 			}
 
+			// If typo blocking is enabled and we have a typo, don't allow input
+			if m.config.Ui.BlockOnTypo && m.hasTypo {
+				return m, nil
+			}
+
 			// Add the character to typed text
 			m.typedText += key
 
@@ -825,12 +849,34 @@ func (m sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.lastKeyTime = currentTime
 
 			// Check if character is incorrect
+			isError := false
 			if len(m.typedText) <= len(m.text) {
 				if m.typedText[len(m.typedText)-1] != m.text[len(m.typedText)-1] {
 					m.errors++
+					isError = true
 					// Mark current word position as having errors
 					m.wordsWithErrors[len(m.typedText)-1] = true
+
+					// Set typo flag and trigger flash if enabled
+					if m.config.Ui.BlockOnTypo {
+						m.hasTypo = true
+					}
+
+					// Trigger visual flash effect
+					if m.config.Ui.TypoFlashEnabled {
+						m.typoFlashTime = time.Now()
+						flashDuration := time.Duration(m.config.Ui.TypoFlashDurationMs) * time.Millisecond
+						if flashDuration <= 0 {
+							flashDuration = 200 * time.Millisecond // Default 200ms
+						}
+						return m, typoFlashCmd(flashDuration)
+					}
 				}
+			}
+
+			// If no error occurred, clear the typo flag
+			if !isError {
+				m.hasTypo = false
 			}
 
 			// Check if we just completed a word and if it was mistyped
@@ -1066,6 +1112,9 @@ func (m sessionModel) View() string {
 		}
 	}
 
+	// Check if flash effect is active
+	isFlashing := !m.typoFlashTime.IsZero() && time.Since(m.typoFlashTime) < time.Duration(m.config.Ui.TypoFlashDurationMs)*time.Millisecond
+
 	// Render visible characters
 	// Note: cursor position on screen = (cursorPos - viewportStart)
 	// The viewport calculation already handles centering
@@ -1080,7 +1129,11 @@ func (m sessionModel) View() string {
 
 		// Apply styling based on typing status
 		var styledChar string
-		if i < len(m.typedText) {
+
+		// If flash effect is active, render all text in red
+		if isFlashing {
+			styledChar = DefaultTheme.Incorrect.Render(charStr) // Red flash
+		} else if i < len(m.typedText) {
 			// Character has been typed
 			if m.typedText[i] == m.text[i] {
 				styledChar = DefaultTheme.Correct.Render(charStr) // Green
@@ -1165,6 +1218,12 @@ func startSession(config types.Config, text string, textSource sources.TextSourc
 		pregenerateThreshold:  config.Text.LLM.PregenerateThreshold,
 		currentSentenceEndPos: len(text), // Initialize to initial text length
 		config:                config,
+
+		// Typo blocking fields
+		hasTypo:          false,
+		typoFlashTime:    time.Time{},
+		currentWordIndex: 0,
+		targetWords:      strings.Fields(text), // Split target text into words
 	}
 
 	// Run the Bubbletea program with alternate screen
