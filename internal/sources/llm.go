@@ -106,8 +106,8 @@ Make it varied content (quotes, facts, or creative).
 Length: 50-80 characters.
 IMPORTANT: Start the sentence with the letter "%s".
 Only output the sentence, nothing else.`, randomLetter)
-
-	response, err := llms.GenerateFromSinglePrompt(ctx, l.model, prompt)
+	options := llms.CallOption(llms.WithTemperature(1.0))
+	response, err := llms.GenerateFromSinglePrompt(ctx, l.model, prompt, options)
 	if err != nil {
 		return "", fmt.Errorf("API call failed: %w", err)
 	}
