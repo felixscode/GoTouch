@@ -1,4 +1,14 @@
-# GoTouch
+
+<div align="center">
+
+```bash
+  ██████╗  ██████╗ ████████╗ ██████╗ ██╗   ██╗ ██████╗██╗  ██╗
+ ██╔════╝ ██╔═══██╗╚══██╔══╝██╔═══██╗██║   ██║██╔════╝██║  ██║
+ ██║  ███╗██║   ██║   ██║   ██║   ██║██║   ██║██║     ███████║
+ ██║   ██║██║   ██║   ██║   ██║   ██║██║   ██║██║     ██╔══██║
+ ╚██████╔╝╚██████╔╝   ██║   ╚██████╔╝╚██████╔╝╚██████╗██║  ██║
+  ╚═════╝  ╚═════╝    ╚═╝    ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝
+```
 
 [![Build and Release](https://github.com/felixscode/GoTouch/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/felixscode/GoTouch/actions/workflows/build-and-release.yml)
 [![codecov](https://codecov.io/gh/felixscode/GoTouch/branch/main/graph/badge.svg)](https://codecov.io/gh/felixscode/GoTouch)
@@ -7,20 +17,14 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Report Card](https://goreportcard.com/badge/github.com/felixscode/GoTouch)](https://goreportcard.com/report/github.com/felixscode/GoTouch)
 
-A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive learning.
+**A fast, terminal-based touch typing trainer built in Go with AI-powered adaptive learning.**
 
 ![gif](./gotouch.gif)
 
-## Table of Contents
+ [Features](#features) | [Installation](#installation) | [Quick Start](#quick-start) | [LLM Setup](#llm-setup-optional-but-recommended) | [Configuration](#configuration) | [Keyboard Controls](#keyboard-controls) | [Development](#development) | [Troubleshooting](#troubleshooting)
+</div>
 
-- [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [LLM Setup](#llm-setup-optional-but-recommended)
-- [Configuration](#configuration)
-- [Keyboard Controls](#keyboard-controls)
-- [Development](#development)
-- [Troubleshooting](#troubleshooting)
+
 
 ## Features
 
