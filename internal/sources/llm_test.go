@@ -527,3 +527,69 @@ func BenchmarkGetNextSentence(b *testing.B) {
 		}
 	}
 }
+
+// TestLLMSource_GetText_WithRealAPI tests GetText with real API if available
+func TestLLMSource_GetText_WithRealAPI(t *testing.T) {
+	if os.Getenv("GOTOUCH_LLM_API_KEY") == "" {
+		t.Skip("Skipping: GOTOUCH_LLM_API_KEY not set")
+	}
+
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	config := types.LLMConfig{
+		Provider:       "anthropic",
+		Model:          "claude-3-5-haiku-latest",
+		TimeoutSeconds: 30,
+	}
+
+	source, err := NewLLMSource(config)
+	if err != nil {
+		t.Fatalf("NewLLMSource() error: %v", err)
+	}
+
+	text, err := source.GetText()
+	if err != nil {
+		t.Fatalf("GetText() error: %v", err)
+	}
+
+	if text == "" {
+		t.Error("GetText() returned empty text")
+	}
+
+	t.Logf("Generated text: %s", text)
+}
+
+// TestLLMSource_GetNextSentence_WithRealAPI tests GetNextSentence with real API
+func TestLLMSource_GetNextSentence_WithRealAPI(t *testing.T) {
+	if os.Getenv("GOTOUCH_LLM_API_KEY") == "" {
+		t.Skip("Skipping: GOTOUCH_LLM_API_KEY not set")
+	}
+
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	config := types.LLMConfig{
+		Provider:       "anthropic",
+		Model:          "claude-3-5-haiku-latest",
+		TimeoutSeconds: 30,
+	}
+
+	source, err := NewLLMSource(config)
+	if err != nil {
+		t.Fatalf("NewLLMSource() error: %v", err)
+	}
+
+	text, err := source.GetNextSentence("Hello world", []rune{'h', 'e'}, []string{"world"})
+	if err != nil {
+		t.Fatalf("GetNextSentence() error: %v", err)
+	}
+
+	if text == "" {
+		t.Error("GetNextSentence() returned empty text")
+	}
+
+	t.Logf("Generated text: %s", text)
+}
