@@ -1,14 +1,7 @@
 
 <div align="center">
 
-```bash
-  ██████╗  ██████╗ ████████╗ ██████╗ ██╗   ██╗ ██████╗██╗  ██╗
- ██╔════╝ ██╔═══██╗╚══██╔══╝██╔═══██╗██║   ██║██╔════╝██║  ██║
- ██║  ███╗██║   ██║   ██║   ██║   ██║██║   ██║██║     ███████║
- ██║   ██║██║   ██║   ██║   ██║   ██║██║   ██║██║     ██╔══██║
- ╚██████╔╝╚██████╔╝   ██║   ╚██████╔╝╚██████╔╝╚██████╗██║  ██║
-  ╚═════╝  ╚═════╝    ╚═╝    ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝
-```
+# GOTOUCH
 
 [![Build and Release](https://github.com/felixscode/GoTouch/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/felixscode/GoTouch/actions/workflows/build-and-release.yml)
 [![codecov](https://codecov.io/gh/felixscode/GoTouch/branch/main/graph/badge.svg)](https://codecov.io/gh/felixscode/GoTouch)
