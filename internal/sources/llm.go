@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go-touch/internal/config"
 	"go-touch/internal/types"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -97,10 +98,14 @@ func (l *LLMSource) GetText() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), l.timeout)
 	defer cancel()
 
-	prompt := `Generate a single interesting sentence for typing practice.
+	// Generate a random letter (A-Z)
+	randomLetter := string(rune('A' + rand.Intn(26)))
+
+	prompt := fmt.Sprintf(`Generate a single interesting sentence for typing practice.
 Make it varied content (quotes, facts, or creative).
 Length: 50-80 characters.
-Only output the sentence, nothing else.`
+IMPORTANT: Start the sentence with the letter "%s".
+Only output the sentence, nothing else.`, randomLetter)
 
 	response, err := llms.GenerateFromSinglePrompt(ctx, l.model, prompt)
 	if err != nil {
