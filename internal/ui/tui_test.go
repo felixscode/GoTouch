@@ -5,6 +5,7 @@ import (
 	"go-touch/internal/types"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -961,6 +962,7 @@ func TestCheckForMistypedWord(t *testing.T) {
 			model := &sessionModel{
 				text:                tt.text,
 				typedText:           tt.typedText,
+				targetWords:         strings.Fields(tt.text), // Add targetWords
 				lastWordEnd:         tt.lastWordEnd,
 				wordsWithErrors:     tt.wordsWithErrors,
 				currentProblemWords: []string{},
@@ -1550,5 +1552,200 @@ func TestSessionModel_Update_LLMCompleteAllText(t *testing.T) {
 
 	if cmd == nil {
 		t.Error("Should return quit command")
+	}
+}
+
+// TestCheckForMistypedWord_FixedLogic tests the fixed word validation logic
+func TestCheckForMistypedWord_FixedLogic(t *testing.T) {
+	tests := []struct {
+		name                 string
+		targetText           string
+		typedText            string
+		wordsWithErrors      map[int]bool
+		lastWordEnd          int
+		expectedProblemCount int
+		expectedProblemWord  string
+	}{
+		{
+			name:                 "first word with typo",
+			targetText:           "hello world",
+			typedText:            "hallo ",
+			wordsWithErrors:      map[int]bool{1: true}, // Error at position 1 (second char)
+			lastWordEnd:          0,
+			expectedProblemCount: 1,
+			expectedProblemWord:  "hello",
+		},
+		{
+			name:                 "word with error during typing",
+			targetText:           "testing words",
+			typedText:            "testing ",
+			wordsWithErrors:      map[int]bool{2: true}, // Error at position 2
+			lastWordEnd:          0,
+			expectedProblemCount: 1,
+			expectedProblemWord:  "testing",
+		},
+		{
+			name:                 "correct word no errors",
+			targetText:           "hello world",
+			typedText:            "hello ",
+			wordsWithErrors:      map[int]bool{},
+			lastWordEnd:          0,
+			expectedProblemCount: 0,
+			expectedProblemWord:  "",
+		},
+		{
+			name:                 "second word with error",
+			targetText:           "hello world",
+			typedText:            "hello wurld ",
+			wordsWithErrors:      map[int]bool{8: true}, // Error in "world" at position 8
+			lastWordEnd:          6,                      // Already processed "hello "
+			expectedProblemCount: 1,
+			expectedProblemWord:  "world",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model := &sessionModel{
+				text:                tt.targetText,
+				typedText:           tt.typedText,
+				targetWords:         strings.Fields(tt.targetText),
+				wordsWithErrors:     tt.wordsWithErrors,
+				currentProblemWords: []string{},
+				lastWordEnd:         tt.lastWordEnd,
+			}
+
+			model.checkForMistypedWord()
+
+			if len(model.currentProblemWords) != tt.expectedProblemCount {
+				t.Errorf("Expected %d problem words, got %d: %v",
+					tt.expectedProblemCount, len(model.currentProblemWords), model.currentProblemWords)
+			}
+
+			if tt.expectedProblemCount > 0 && len(model.currentProblemWords) > 0 {
+				found := false
+				for _, word := range model.currentProblemWords {
+					if word == tt.expectedProblemWord {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected problem word %q not found in %v",
+						tt.expectedProblemWord, model.currentProblemWords)
+				}
+			}
+		})
+	}
+}
+
+// TestTypoBlocking tests the typo blocking mechanism
+func TestTypoBlocking(t *testing.T) {
+	config := types.Config{
+		Ui: types.UiConfig{
+			BlockOnTypo: true,
+		},
+	}
+
+	model := sessionModel{
+		text:             "test",
+		typedText:        "t",
+		hasStarted:       true,
+		startTime:        time.Now(),
+		lastKeyTime:      time.Now(),
+		keyStrokeTimes:   []time.Duration{},
+		wordsWithErrors:  map[int]bool{},
+		currentProblemWords: []string{},
+		lastWordEnd:      0,
+		hasTypo:          true, // Simulate existing typo
+		config:           config,
+		targetWords:      []string{"test"},
+	}
+
+	// Try to type when typo exists
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(sessionModel)
+
+	// typedText should remain unchanged because of typo blocking
+	if m.typedText != "t" {
+		t.Errorf("Typo blocking failed: typed text should remain 't', got %q", m.typedText)
+	}
+}
+
+// TestTypoFlash tests the visual flash feedback
+func TestTypoFlash(t *testing.T) {
+	config := types.Config{
+		Ui: types.UiConfig{
+			BlockOnTypo:         false,
+			TypoFlashEnabled:    true,
+			TypoFlashDurationMs: 200,
+		},
+	}
+
+	model := sessionModel{
+		text:             "test",
+		typedText:        "",
+		hasStarted:       true,
+		startTime:        time.Now(),
+		lastKeyTime:      time.Now(),
+		keyStrokeTimes:   []time.Duration{},
+		wordsWithErrors:  map[int]bool{},
+		currentProblemWords: []string{},
+		lastWordEnd:      0,
+		config:           config,
+		targetWords:      []string{"test"},
+	}
+
+	// Type incorrect character
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}}
+	updatedModel, cmd := model.Update(msg)
+	m := updatedModel.(sessionModel)
+
+	// Should trigger flash
+	if m.typoFlashTime.IsZero() {
+		t.Error("typoFlashTime should be set when typo occurs")
+	}
+
+	// Should return flash command
+	if cmd == nil {
+		t.Error("Should return flash command when flash is enabled")
+	}
+}
+
+// TestBackspaceClearsTypo tests that backspace clears the typo flag
+func TestBackspaceClearsTypo(t *testing.T) {
+	model := sessionModel{
+		text:      "test",
+		typedText: "tx",
+		hasTypo:   true,
+	}
+
+	msg := tea.KeyMsg{Type: tea.KeyBackspace}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(sessionModel)
+
+	if m.hasTypo {
+		t.Error("hasTypo should be cleared after backspace")
+	}
+
+	if m.typedText != "t" {
+		t.Errorf("typedText should be 't' after backspace, got %q", m.typedText)
+	}
+}
+
+// TestTypoFlashMsg tests typo flash message handling
+func TestTypoFlashMsg(t *testing.T) {
+	model := sessionModel{
+		text:          "test",
+		typoFlashTime: time.Now(),
+	}
+
+	msg := typoFlashMsg{}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(sessionModel)
+
+	if !m.typoFlashTime.IsZero() {
+		t.Error("typoFlashTime should be cleared after flash message")
 	}
 }

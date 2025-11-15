@@ -13,7 +13,10 @@ type Config struct {
 }
 
 type UiConfig struct {
-	Theme string `yaml:"theme"`
+	Theme               string `yaml:"theme"`
+	BlockOnTypo         bool   `yaml:"block_on_typo"`          // Block further input when a typo is detected
+	TypoFlashEnabled    bool   `yaml:"typo_flash_enabled"`     // Enable red flash visual feedback on typo
+	TypoFlashDurationMs int    `yaml:"typo_flash_duration_ms"` // Duration of red flash in milliseconds
 }
 
 type TextConfig struct {

@@ -36,6 +36,17 @@ ui:
   # Theme: "default" or "dark"
   theme: default
 
+  # Block further text input when a typo (error) is detected
+  # User must press backspace to correct the error before continuing
+  block_on_typo: false
+
+  # Enable visual flash feedback when a typo occurs
+  # All text briefly turns red to indicate an error
+  typo_flash_enabled: true
+
+  # Duration of the red flash in milliseconds
+  typo_flash_duration_ms: 200
+
 stats:
   # Path to save typing session statistics
   # Auto-configured based on platform
