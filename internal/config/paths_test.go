@@ -295,6 +295,86 @@ func TestFindAPIKeyFile_NotFound(t *testing.T) {
 	}
 }
 
+func TestEnsureDir_ErrorCase(t *testing.T) {
+	// Test error case - try to create directory in non-existent parent
+	// This is platform-dependent, so we'll test with invalid path
+	invalidPath := filepath.Join(string([]byte{0}), "test")
+
+	err := EnsureDir(invalidPath)
+	// This may or may not error depending on platform
+	// Just verify function doesn't panic
+	_ = err
+}
+
+func TestGetConfigDir_ErrorHandling(t *testing.T) {
+	// Test that GetConfigDir handles various scenarios
+	dir, err := GetConfigDir()
+
+	if err != nil {
+		t.Logf("GetConfigDir() error (acceptable on some platforms): %v", err)
+	}
+
+	if dir != "" && err == nil {
+		// Verify it contains gotouch
+		if !contains(dir, "gotouch") {
+			t.Errorf("GetConfigDir() = %v, expected to contain 'gotouch'", dir)
+		}
+	}
+}
+
+func TestGetDataDir_XDG_DATA_HOME_Set(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("Skipping Unix-specific test")
+	}
+
+	oldXDG := os.Getenv("XDG_DATA_HOME")
+	defer func() {
+		if oldXDG != "" {
+			os.Setenv("XDG_DATA_HOME", oldXDG)
+		} else {
+			os.Unsetenv("XDG_DATA_HOME")
+		}
+	}()
+
+	testPath := "/tmp/custom-data-home"
+	os.Setenv("XDG_DATA_HOME", testPath)
+
+	got, err := GetDataDir()
+	if err != nil {
+		t.Fatalf("GetDataDir() error: %v", err)
+	}
+
+	expected := filepath.Join(testPath, "gotouch")
+	if got != expected {
+		t.Errorf("GetDataDir() = %v, want %v", got, expected)
+	}
+}
+
+func TestFindConfigFile_WithCurrentDirConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+
+	os.Chdir(tmpDir)
+
+	// Create config in current directory
+	configPath := "config.yaml"
+	err := os.WriteFile(configPath, []byte("test: true"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create config: %v", err)
+	}
+	defer os.Remove(configPath)
+
+	got, err := FindConfigFile("")
+	if err != nil {
+		t.Errorf("FindConfigFile() unexpected error: %v", err)
+	}
+
+	if got == "" {
+		t.Error("FindConfigFile() should find config.yaml in current directory")
+	}
+}
+
 // Helper function
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&

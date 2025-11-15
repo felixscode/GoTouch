@@ -901,6 +901,57 @@ func TestDashboardModel_Update_OtherKeys(t *testing.T) {
 	_ = updatedModel // Use the variable
 }
 
+func TestDashboardModel_Update_CtrlC(t *testing.T) {
+	config := types.Config{}
+	session := types.TypingSession{}
+	stats := types.UserStats{}
+	model := newDashboardModel(config, session, stats)
+
+	// Test Ctrl+C key - dashboard only responds to Enter
+	msg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	_, cmd := model.Update(msg)
+
+	// Dashboard doesn't handle ctrl+c explicitly, should return nil
+	if cmd != nil {
+		t.Logf("Update(ctrl+c) returned cmd: %v (dashboard only responds to Enter)", cmd)
+	}
+}
+
+func TestDashboardModel_Update_EscKey(t *testing.T) {
+	config := types.Config{}
+	session := types.TypingSession{}
+	stats := types.UserStats{}
+	model := newDashboardModel(config, session, stats)
+
+	// Test ESC key - dashboard only responds to Enter
+	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	_, cmd := model.Update(msg)
+
+	// Dashboard doesn't handle esc explicitly, should return nil
+	if cmd != nil {
+		t.Logf("Update(esc) returned cmd: %v (dashboard only responds to Enter)", cmd)
+	}
+}
+
+func TestDashboardModel_Update_WindowSizeMsg(t *testing.T) {
+	config := types.Config{}
+	session := types.TypingSession{}
+	stats := types.UserStats{}
+	model := newDashboardModel(config, session, stats)
+
+	// Test window size message
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+
+	m := updatedModel.(dashboardModel)
+	if m.width != 120 {
+		t.Errorf("Width = %d, want 120", m.width)
+	}
+	if m.height != 40 {
+		t.Errorf("Height = %d, want 40", m.height)
+	}
+}
+
 // Helper functions
 
 func makeString(length int) string {

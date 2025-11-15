@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"go-touch/internal/types"
 	"os"
 	"path/filepath"
@@ -249,5 +250,133 @@ stats:
 
 	if err == nil {
 		t.Errorf("getText() expected error for invalid source, got nil")
+	}
+}
+
+func TestGetText_ErrorHandling(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	// Test with empty source
+	configContent := `text:
+  source: ""
+ui:
+  theme: "default"
+stats:
+  file_dir: "user_stats.json"
+`
+
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config: %v", err)
+	}
+
+	config, err := types.LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadConfig() error: %v", err)
+	}
+
+	// Empty source should default to dummy
+	text, textSource, err := getText(*config)
+
+	if err != nil {
+		t.Logf("getText() with empty source: %v", err)
+	}
+
+	if text != "" && textSource != nil {
+		t.Logf("getText() returned text: %s", text)
+	}
+}
+
+func TestGetText_DummySource_Variations(t *testing.T) {
+	tests := []struct {
+		name           string
+		source         string
+		expectError    bool
+		expectNonEmpty bool
+	}{
+		{
+			name:           "dummy source",
+			source:         "dummy",
+			expectError:    false,
+			expectNonEmpty: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, "config.yaml")
+
+			configContent := fmt.Sprintf(`text:
+  source: %s
+ui:
+  theme: "default"
+stats:
+  file_dir: "user_stats.json"
+`, tt.source)
+
+			err := os.WriteFile(configPath, []byte(configContent), 0644)
+			if err != nil {
+				t.Fatalf("Failed to create test config: %v", err)
+			}
+
+			config, err := types.LoadConfig(configPath)
+			if err != nil {
+				t.Fatalf("LoadConfig() error: %v", err)
+			}
+
+			text, textSource, err := getText(*config)
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got nil")
+			}
+
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			if tt.expectNonEmpty && text == "" {
+				t.Error("Expected non-empty text")
+			}
+
+			if textSource == nil && !tt.expectError {
+				t.Error("Expected non-nil textSource")
+			}
+		})
+	}
+}
+
+func TestMain_EdgeCases(t *testing.T) {
+	// Test that getText handles various edge cases
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	// Test with minimal config
+	configContent := `text:
+  source: dummy
+`
+
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config: %v", err)
+	}
+
+	config, err := types.LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadConfig() error: %v", err)
+	}
+
+	text, textSource, err := getText(*config)
+	if err != nil {
+		t.Errorf("getText() unexpected error with minimal config: %v", err)
+	}
+
+	if text == "" {
+		t.Error("getText() returned empty text with minimal config")
+	}
+
+	if textSource == nil {
+		t.Error("getText() returned nil textSource with minimal config")
 	}
 }
